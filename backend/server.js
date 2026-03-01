@@ -1,5 +1,9 @@
 const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '.vnv') });
+const fs = require('fs');
+
+const envPathEnv = path.resolve(__dirname, '.env');
+const envPathVnv = path.resolve(__dirname, '.vnv');
+require('dotenv').config({ path: fs.existsSync(envPathEnv) ? envPathEnv : envPathVnv });
 const express = require('express');
 
 const app = express();
@@ -10,8 +14,10 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY;
 
 const frontDir = path.resolve(__dirname, '..', 'front');
+const rootDir = path.resolve(__dirname, '..');
 
-app.use(express.static(frontDir));
+app.use(express.json());
+app.use(express.static(frontDir, { index: false }));
 
 function hasSupabaseConfig() {
   return Boolean(SUPABASE_URL && SUPABASE_KEY);
@@ -22,6 +28,26 @@ async function supabaseRestRequest(resourcePath) {
     headers: {
       apikey: SUPABASE_KEY,
       Authorization: `Bearer ${SUPABASE_KEY}`,
+    },
+  });
+
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(`Supabase error ${res.status}: ${message}`);
+  }
+
+  return res.json();
+}
+
+async function supabaseServiceRestRequest(resourcePath) {
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+  }
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${resourcePath}`, {
+    headers: {
+      apikey: SUPABASE_SERVICE_ROLE_KEY,
+      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
     },
   });
 
@@ -46,6 +72,33 @@ app.get('/api/categories', async (_req, res) => {
   }
 });
 
+app.get('/api/resolve-username', async (req, res) => {
+  if (!SUPABASE_URL) {
+    return res.status(500).json({ error: 'SUPABASE_URL belum diset.' });
+  }
+  if (!SUPABASE_SERVICE_ROLE_KEY) {
+    return res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY belum diset.' });
+  }
+
+  const usernameRaw = String(req.query.username || '').trim().toLowerCase();
+  if (!usernameRaw) {
+    return res.status(400).json({ error: 'username wajib diisi' });
+  }
+
+  try {
+    const q = `profiles?select=email&username=eq.${encodeURIComponent(usernameRaw)}&limit=1`;
+    const data = await supabaseServiceRestRequest(q);
+    const row = Array.isArray(data) && data.length ? data[0] : null;
+    const email = row && row.email ? String(row.email).trim().toLowerCase() : '';
+    if (!email) {
+      return res.status(404).json({ error: 'not_found' });
+    }
+    return res.json({ email });
+  } catch (err) {
+    return res.status(500).json({ error: 'Gagal resolve username.' });
+  }
+});
+
 app.get('/api/materi', async (req, res) => {
   if (!hasSupabaseConfig()) {
     return res.status(500).json({ error: 'SUPABASE_URL dan SUPABASE_ANON_KEY (atau SUPABASE_SERVICE_ROLE_KEY) belum diset.' });
@@ -65,8 +118,12 @@ app.get('/api/materi', async (req, res) => {
   }
 });
 
+app.get('/landing.html', (req, res) => {
+  res.sendFile(path.join(rootDir, 'landing.html'));
+});
+
 app.get('/', (req, res) => {
-  res.sendFile(path.join(frontDir, 'login.html'));
+  res.sendFile(path.join(rootDir, 'landing.html'));
 });
 
 app.listen(PORT, () => {

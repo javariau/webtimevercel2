@@ -25,6 +25,39 @@ async function getSupabaseClient() {
     return supabaseClient;
 }
 
+async function isPremiumActive(sb, userId) {
+    try {
+        if (!sb || !userId) return false;
+        const nowIso = new Date().toISOString();
+
+        try {
+            const { data: prof } = await sb.from('profiles').select('premium_expires_at').eq('id', userId).maybeSingle();
+            if (prof && prof.premium_expires_at && String(prof.premium_expires_at) > nowIso) return true;
+        } catch (e) {
+            // ignore
+        }
+
+        const { data: purchases, error } = await sb
+            .from('premium_purchases')
+            .select('id, status, expires_at, confirmed_at, created_at')
+            .eq('user_id', userId)
+            .eq('status', 'confirmed')
+            .order('confirmed_at', { ascending: false })
+            .order('created_at', { ascending: false })
+            .limit(1);
+
+        if (error) return false;
+        const row = Array.isArray(purchases) && purchases[0] ? purchases[0] : null;
+        if (!row) return false;
+        if (!row.expires_at) return true;
+        return String(row.expires_at) > nowIso;
+    } catch (e) {
+        return false;
+    }
+}
+
+window.isPremiumActive = isPremiumActive;
+
 async function requireAuthIfNeeded() {
     if (document.body && document.body.dataset && document.body.dataset.page === 'auth') return;
     if (!document.body || !document.body.dataset || document.body.dataset.requireAuth !== 'true') return;

@@ -3,6 +3,14 @@ async function initMateriPage() {
     const cardsContainer = document.getElementById('materiCards');
     if (!pillsContainer || !cardsContainer) return;
 
+    const urlParams = new URLSearchParams(window.location.search || '');
+    const searchQuery = String(urlParams.get('q') || '').trim().toLowerCase();
+
+    const headerSearchInput = document.querySelector('.top-header .search-bar input');
+    if (headerSearchInput && searchQuery) {
+        headerSearchInput.value = searchQuery;
+    }
+
     const setCardsMessage = (message) => {
         cardsContainer.innerHTML = `<div class="card" style="padding: 18px;">${message}</div>`;
     };
@@ -54,6 +62,16 @@ async function initMateriPage() {
         try {
             setCardsMessage('Memuat materi...');
             const sb = await getSupabaseClient();
+
+            let premiumOk = false;
+            try {
+                const { data: sessionData } = await sb.auth.getSession();
+                const user = sessionData && sessionData.session ? sessionData.session.user : null;
+                premiumOk = user && typeof window.isPremiumActive === 'function' ? await window.isPremiumActive(sb, user.id) : false;
+            } catch (e) {
+                premiumOk = false;
+            }
+
             let q = sb
                 .from('materi')
                 .select('id, category_id, title, subtitle, image_url, summary, created_at')
@@ -64,7 +82,37 @@ async function initMateriPage() {
 
             const { data, error } = await q;
             if (error) throw error;
-            renderMateriCards(data);
+
+            let rows = Array.isArray(data) ? data : [];
+            if (searchQuery) {
+                rows = rows.filter((r) => {
+                    const hay = `${safeText(r.title)} ${safeText(r.summary)} ${safeText(r.subtitle)}`.toLowerCase();
+                    return hay.includes(searchQuery);
+                });
+            }
+
+            if (!premiumOk) {
+                const freeCount = 6;
+                const visible = rows.slice(0, freeCount);
+                renderMateriCards(visible);
+                if (rows.length > freeCount) {
+                    cardsContainer.innerHTML += `
+                    <div class="card" onclick="window.location.href='premium.html'">
+                        <div class="card-body">
+                            <div class="card-meta">Premium</div>
+                            <h3 class="card-title">Materi Terkunci</h3>
+                            <p class="card-text">Upgrade Premium untuk membuka semua materi.</p>
+                        </div>
+                        <div class="card-footer">
+                            <span class="card-tag">Upgrade</span>
+                            <span style="color: var(--primary); font-size: 13px; font-weight: 600;">Buka Premium <i class="fas fa-arrow-right"></i></span>
+                        </div>
+                    </div>`;
+                }
+                return;
+            }
+
+            renderMateriCards(rows);
         } catch (e) {
             setCardsMessage('Gagal memuat materi.');
         }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TimeTrack - Kuis</title>
+    <title>TimeTrack - Checkout Toko</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -29,7 +29,7 @@
                         <i class="fas fa-book"></i>
                         <span>Materi Pembelajaran</span>
                     </a>
-                    <a href="quizzes.html" class="nav-item active">
+                    <a href="quizzes.html" class="nav-item">
                         <i class="fas fa-circle-question"></i>
                         <span>Kuis</span>
                     </a>
@@ -45,7 +45,7 @@
                         <i class="fas fa-crown"></i>
                         <span>Premium</span>
                     </a>
-                    <a href="shop.html" class="nav-item">
+                    <a href="shop.html" class="nav-item active">
                         <i class="fas fa-store"></i>
                         <span>Toko</span>
                     </a>
@@ -102,7 +102,7 @@
                     </button>
                     <div class="search-bar">
                         <i class="fas fa-search"></i>
-                        <input type="text" placeholder="Cari kuis, kategori, atau topik...">
+                        <input type="text" placeholder="Cari produk atau reward...">
                     </div>
                 </div>
 
@@ -119,13 +119,13 @@
 
             <div class="content-wrapper">
                 <div class="section-header">
-                    <h2 class="section-title">❓ Kuis</h2>
+                    <h2 class="section-title">🧾 Checkout</h2>
                 </div>
 
-                <div class="card" style="padding: 18px;">
-                    <div class="card-meta">Tampilan sementara</div>
-                    <h3 class="card-title" style="margin-top: 6px;">Segera hadir</h3>
-                    <p class="card-text">Halaman kuis akan segera terhubung dengan materi dan soal yang lebih lengkap, termasuk riwayat pengerjaan.</p>
+                <div id="shopCheckoutRoot" class="card" style="padding: 18px;">
+                    <div class="card-meta">Memuat...</div>
+                    <h3 class="card-title" style="margin-top: 6px;">Detail pembelian</h3>
+                    <p class="card-text">Mohon tunggu.</p>
                 </div>
             </div>
         </main>
@@ -137,9 +137,9 @@
                 <i class="fas fa-home"></i>
                 <span>Beranda</span>
             </a>
-            <a href="quizzes.html" class="mobile-nav-item active">
-                <i class="fas fa-circle-question"></i>
-                <span>Kuis</span>
+            <a href="shop.html" class="mobile-nav-item active">
+                <i class="fas fa-store"></i>
+                <span>Toko</span>
             </a>
             <a href="materi.html" class="mobile-nav-item">
                 <i class="fas fa-book"></i>
