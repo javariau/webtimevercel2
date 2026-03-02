@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TimeTrack - Detail Kuis</title>
+    <title>TimeTrack - Ruang Chat</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -29,11 +29,11 @@
                         <i class="fas fa-book"></i>
                         <span>Materi Pembelajaran</span>
                     </a>
-                    <a href="quizzes.html" class="nav-item active">
+                    <a href="quizzes.html" class="nav-item">
                         <i class="fas fa-circle-question"></i>
                         <span>Kuis</span>
                     </a>
-                    <a href="community.html" class="nav-item">
+                    <a href="community.html" class="nav-item active">
                         <i class="fas fa-comments"></i>
                         <span>Komunitas</span>
                     </a>
@@ -102,7 +102,7 @@
                     </button>
                     <div class="search-bar">
                         <i class="fas fa-search"></i>
-                        <input type="text" placeholder="Cari kuis, kategori, atau topik...">
+                        <input type="text" placeholder="Cari pesan...">
                     </div>
                 </div>
 
@@ -119,79 +119,43 @@
 
             <div class="content-wrapper">
                 <div class="section-header">
-                    <h2 class="section-title">📝 Mulai Kuis</h2>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <button onclick="window.history.back()" style="background: none; border: none; font-size: 18px; color: var(--text); cursor: pointer;">
+                            <i class="fas fa-arrow-left"></i>
+                        </button>
+                        <h2 class="section-title" id="roomTitle">Ruang Chat</h2>
+                    </div>
+                    <div class="section-action">
+                        <span id="onlineStatus" style="font-size: 13px; color: var(--green); display: flex; align-items: center; gap: 6px;">
+                            <span style="width: 8px; height: 8px; background: var(--green); border-radius: 50%;"></span> Online
+                        </span>
+                    </div>
                 </div>
 
-                <div class="card" style="padding: 18px;" id="quizDetailRoot">
-                    <div class="card-meta">Memuat...</div>
-                    <h3 class="card-title" style="margin-top: 6px;">Kuis</h3>
-                    <p class="card-text">Sedang mengambil data kuis.</p>
+                <div style="display: flex; flex-direction: column; height: calc(100vh - 180px); background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
+                    <!-- Chat Area -->
+                    <div id="chatMessages" style="flex: 1; padding: 20px; overflow-y: auto; background: #f8f9fa; display: flex; flex-direction: column; gap: 12px;">
+                        <div style="text-align: center; color: var(--text-light); font-size: 13px; margin: 20px 0;">
+                            Memuat percakapan...
+                        </div>
+                    </div>
+
+                    <!-- Input Area -->
+                    <form id="chatForm" style="padding: 16px; background: white; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="chatInput" placeholder="Ketik pesan..." style="flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid var(--border); outline: none; transition: border-color 0.2s;" autocomplete="off">
+                        <button type="submit" style="width: 44px; height: 44px; border-radius: 50%; background: var(--primary); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s;">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
         </main>
     </div>
 
-    <nav class="mobile-nav">
-        <div class="mobile-nav-items">
-            <a href="index.html" class="mobile-nav-item">
-                <i class="fas fa-home"></i>
-                <span>Beranda</span>
-            </a>
-            <a href="quizzes.html" class="mobile-nav-item active">
-                <i class="fas fa-circle-question"></i>
-                <span>Kuis</span>
-            </a>
-            <a href="materi.html" class="mobile-nav-item">
-                <i class="fas fa-book"></i>
-                <span>Materi</span>
-            </a>
-            <a href="profile.html" class="mobile-nav-item">
-                <i class="fas fa-user"></i>
-                <span>Profil</span>
-            </a>
-        </div>
-    </nav>
-
-    <!-- Quiz Result Modal -->
-    <div id="quizResultModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content fade-in-up">
-            <div style="text-align: center;">
-                <div class="result-icon-wrapper">
-                    <i class="fas fa-trophy" style="font-size: 40px; color: #FFD700;"></i>
-                </div>
-                <h2 style="margin-top: 16px; color: var(--text);">Selamat!</h2>
-                <p style="color: var(--text-light); margin-top: 8px;">Kamu telah menyelesaikan kuis ini.</p>
-                
-                <div class="result-stats" style="margin-top: 24px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-                    <div class="stat-box">
-                        <div class="stat-value" id="resultScore">0</div>
-                        <div class="stat-label">Skor</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="resultCorrect">0</div>
-                        <div class="stat-label">Benar</div>
-                    </div>
-                    <div class="stat-box">
-                        <div class="stat-value" id="resultXP">+0</div>
-                        <div class="stat-label">XP</div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 24px;">
-                    <div class="badge-reward" style="background: rgba(255, 215, 0, 0.1); padding: 12px; border-radius: 12px; border: 1px dashed #FFD700; display: inline-flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-medal" style="color: #FFD700; font-size: 20px;"></i>
-                        <span style="font-weight: 600; color: #B8860B;">Badge Baru Terbuka!</span>
-                    </div>
-                </div>
-
-                <div style="margin-top: 30px; display: flex; gap: 10px;">
-                    <a href="quizzes.html" class="btn-primary" style="flex: 1; text-align: center; text-decoration: none;">Kembali ke Daftar</a>
-                    <button onclick="location.reload()" class="btn-secondary" style="flex: 1;">Ulangi</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="assets/js/supabaseClient.js"></script>
+    <script src="assets/js/bootstrap.js"></script>
     <script src="assets/js/app.js"></script>
+    <script src="assets/js/dataPages.js"></script>
 </body>
 </html>

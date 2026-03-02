@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeTrack - Edit Profil</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div id="mainApp" class="app-container">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon"><i class="fas fa-landmark"></i></div>
+                    <span>TimeTrack</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <div class="nav-section">
+                    <div class="nav-section-title">Menu Utama</div>
+                    <a href="index.html" class="nav-item">
+                        <i class="fas fa-home"></i>
+                        <span>Beranda</span>
+                    </a>
+                    <a href="timeline.html" class="nav-item">
+                        <i class="fas fa-stream"></i>
+                        <span>Timeline Sejarah</span>
+                    </a>
+                    <a href="tokoh.html" class="nav-item">
+                        <i class="fas fa-users"></i>
+                        <span>Tokoh &amp; Kisah</span>
+                    </a>
+                    <a href="materi.html" class="nav-item">
+                        <i class="fas fa-book"></i>
+                        <span>Materi Pembelajaran</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Lainnya</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="fas fa-bell"></i>
+                        <span>Notifikasi</span>
+                    </a>
+                    <a href="saved.html" class="nav-item">
+                        <i class="fas fa-bookmark"></i>
+                        <span>Tersimpan</span>
+                    </a>
+                    <a href="achievement.html" class="nav-item">
+                        <i class="fas fa-trophy"></i>
+                        <span>Pencapaian</span>
+                    </a>
+                </div>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="profile-container" style="position:relative;">
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="profile-edit.html" class="dropdown-item active"><i class="fas fa-user-pen"></i> Edit Profil</a>
+                        <a href="login.html" class="dropdown-item"><i class="fas fa-right-from-bracket"></i> Ganti Akun</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" onclick="handleLogout(event)" class="dropdown-item" style="color:#e53935;"><i class="fas fa-power-off"></i> Logout</a>
+                    </div>
+                    <div class="user-profile" onclick="toggleProfileMenu(event)">
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
+                        <div class="user-info">
+                            <div class="user-name">...</div>
+                            <div class="user-role">Pelajar Aktif</div>
+                        </div>
+                        <i class="fas fa-chevron-up" style="color: var(--text-light); font-size: 12px;"></i>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div style="display: flex; align-items: center; flex: 1;">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()" type="button">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Cari materi sejarah, tokoh, atau peristiwa...">
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="window.location.href='notification.html'" type="button">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge">3</span>
+                    </button>
+                    <button class="icon-btn" onclick="window.location.href='profile.html'" type="button">
+                        <i class="fas fa-user"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <div class="card" style="max-width: 600px; margin: 0 auto; padding: 24px;">
+                    <h2 style="margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">Edit Profil</h2>
+                    
+                    <form id="editProfileForm" style="display: grid; gap: 16px;">
+                        <div style="text-align: center; margin-bottom: 16px;">
+                            <div style="position: relative; width: 100px; height: 100px; margin: 0 auto;">
+                                <img id="profilePreview" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=300" alt="Profile" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; border: 3px solid var(--primary);">
+                                <label for="avatarUpload" style="position: absolute; bottom: 0; right: 0; background: var(--primary); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">
+                                    <i class="fas fa-camera" style="font-size: 14px;"></i>
+                                </label>
+                                <input type="file" id="avatarUpload" accept="image/*" style="display: none;">
+                            </div>
+                            <p style="font-size: 13px; color: var(--text-light); margin-top: 8px;">Klik ikon kamera untuk mengganti foto</p>
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px;">Nama Lengkap</label>
+                            <input type="text" id="fullNameInput" class="form-input" placeholder="Nama Lengkap" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;">
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px;">Username</label>
+                            <input type="text" id="usernameInput" class="form-input" placeholder="Username" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px;" readonly disabled style="background: #f5f5f5;">
+                        </div>
+
+                        <div class="form-group">
+                            <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 14px;">Bio / Tentang Saya</label>
+                            <textarea id="bioInput" rows="3" placeholder="Tulis sedikit tentang dirimu..." style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit;"></textarea>
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 10px;">
+                            <button type="submit" class="btn-primary" style="flex: 1; padding: 12px; border: none; background: var(--primary); color: white; border-radius: 8px; font-weight: 600; cursor: pointer;">Simpan Perubahan</button>
+                            <button type="button" onclick="window.history.back()" style="padding: 12px 20px; border: 1px solid var(--border); background: white; color: var(--text); border-radius: 8px; font-weight: 600; cursor: pointer;">Batal</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="assets/js/app.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const fullNameInput = document.getElementById('fullNameInput');
+            const usernameInput = document.getElementById('usernameInput');
+            const bioInput = document.getElementById('bioInput');
+            const profilePreview = document.getElementById('profilePreview');
+            const avatarUpload = document.getElementById('avatarUpload');
+            const editForm = document.getElementById('editProfileForm');
+
+            // Load user data
+            try {
+                const sb = await getSupabaseClient();
+                const { data: { session } } = await sb.auth.getSession();
+                
+                if (session && session.user) {
+                    const user = session.user;
+                    const metadata = user.user_metadata || {};
+                    
+                    if (fullNameInput) fullNameInput.value = metadata.full_name || '';
+                    if (usernameInput) usernameInput.value = metadata.username || user.email.split('@')[0];
+                    if (bioInput) bioInput.value = metadata.bio || '';
+                    if (profilePreview && metadata.avatar_url) profilePreview.src = metadata.avatar_url;
+                }
+            } catch (e) {
+                console.error('Error loading profile:', e);
+            }
+
+            // Handle Avatar Preview
+            if (avatarUpload) {
+                avatarUpload.addEventListener('change', async (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            if (profilePreview) profilePreview.src = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            // Handle Save
+            if (editForm) {
+                editForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const btn = editForm.querySelector('button[type="submit"]');
+                    const originalText = btn.textContent;
+                    btn.textContent = 'Menyimpan...';
+                    btn.disabled = true;
+
+                    try {
+                        const sb = await getSupabaseClient();
+                        const { data: { session } } = await sb.auth.getSession();
+                        const user = session ? session.user : null;
+                        
+                        if (!user) throw new Error('Sesi kadaluarsa, silakan login ulang.');
+
+                        const updates = {
+                            full_name: fullNameInput.value,
+                            bio: bioInput.value,
+                        };
+
+                        const { error } = await sb.auth.updateUser({
+                            data: updates
+                        });
+
+                        // Also update profiles table if exists
+                        try {
+                            await sb.from('profiles').update({
+                                full_name: fullNameInput.value,
+                                bio: bioInput.value
+                            }).eq('id', user.id);
+                        } catch (ignore) {}
+
+                        if (error) throw error;
+
+                        alert('Profil berhasil diperbarui!');
+                        window.location.href = 'profile.html';
+
+                    } catch (err) {
+                        alert('Gagal memperbarui profil: ' + err.message);
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

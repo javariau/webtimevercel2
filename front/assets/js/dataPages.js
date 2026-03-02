@@ -7,6 +7,452 @@ function escapeHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
+async function initMateriPage_DISABLED() {
+    try {
+        if (!window.location || !String(window.location.pathname || '').toLowerCase().endsWith('materi.html')) return;
+
+        // Cek Status Premium User
+        const sb = await getSupabaseClient();
+        const { data: { user } } = await sb.auth.getUser();
+        const isPremium = user && user.user_metadata && user.user_metadata.plan === 'premium';
+
+        const pillsContainer = document.getElementById('materiCategoryPills');
+        const cardsContainer = document.getElementById('materiCards');
+        
+        // Handle Existing Premium Cards (Static HTML)
+        const staticCards = document.querySelectorAll('.card[data-premium="true"]');
+        staticCards.forEach(card => {
+            if (!isPremium) {
+                // Lock Content
+                const btn = card.querySelector('button');
+                if (btn) {
+                    btn.textContent = 'Terkunci (Premium)';
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-secondary');
+                    btn.style.opacity = '0.7';
+                    btn.style.cursor = 'not-allowed';
+                    btn.onclick = (e) => {
+                        e.preventDefault();
+                        alert('Materi ini khusus Premium. Silakan upgrade akun Anda.');
+                        window.location.href = 'premium.html';
+                    };
+                }
+                // Add Overlay
+                const imgWrapper = card.querySelector('.card-image-wrapper');
+                if (imgWrapper) {
+                    const lockOverlay = document.createElement('div');
+                    lockOverlay.style.cssText = 'position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:10;';
+                    lockOverlay.innerHTML = '<i class="fas fa-lock" style="color:white; font-size:24px;"></i>';
+                    imgWrapper.appendChild(lockOverlay);
+                }
+            }
+        });
+
+        // Fetch Categories from Supabase
+        const { data: categories } = await sb
+            .from('categories')
+            .select('*')
+            .order('name', { ascending: true });
+
+        if (pillsContainer && categories) {
+            pillsContainer.innerHTML = `
+                <button class="pill active" data-id="all">Semua</button>
+                ${categories.map(c => `<button class="pill" data-id="${c.id}">${escapeHtml(c.name)}</button>`).join('')}
+            `;
+        }
+
+        // Logic Fetch Materi Dinamis
+        // Coba fetch tanpa join dulu untuk memastikan data ada
+        let query = sb
+            .from('learning_materials')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        const { data: materials, error: matErr } = await query;
+
+        if (matErr) {
+            console.error('Error fetch materials:', matErr);
+            if (cardsContainer) {
+                cardsContainer.innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center; color: red;">
+                    Error memuat materi: ${matErr.message}
+                </div>`;
+            }
+            return;
+        }
+
+        if (cardsContainer && materials) {
+            if (materials.length === 0) {
+                cardsContainer.innerHTML = `<div style="grid-column: 1/-1; padding: 20px; text-align: center;">
+                    Belum ada materi tersedia.
+                </div>`;
+                return;
+            }
+
+            // Render kartu materi
+            cardsContainer.innerHTML = materials.map(m => {
+                // Gunakan category_id atau string default jika tidak ada join
+                const categoryName = m.category_id ? 'Materi Sejarah' : 'Umum'; 
+                
+                // Override: Materi tidak dikunci (sesuai permintaan user)
+                const isLocked = false; 
+                
+                return `
+                <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
+                    <div class="card-image-wrapper" style="width: 100%; height: 180px; position: relative;">
+                        <img src="${escapeHtml(m.image_url || 'assets/img/placeholder.jpg')}" alt="${escapeHtml(m.title)}" style="width: 100%; height: 100%; object-fit: cover;">
+                        ${m.is_premium ? `<span class="badge-premium"><i class="fas fa-crown"></i> Premium</span>` : ''}
+                        ${isLocked ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:10;"><i class="fas fa-lock" style="color:white; font-size:32px;"></i></div>` : ''}
+                    </div>
+                    <div class="card-content" style="flex: 1; display: flex; flex-direction: column; padding: 16px;">
+                        <div class="card-meta">${escapeHtml(categoryName)}</div>
+                        <h3 class="card-title" style="margin: 8px 0; font-size: 18px; line-height: 1.4;">${escapeHtml(m.title)}</h3>
+                        <p class="card-text" style="margin-bottom: 16px; flex: 1;">${escapeHtml(m.description || '')}</p>
+                        ${isLocked 
+                            ? `<button class="btn-secondary" style="width: 100%; opacity: 0.7; cursor: not-allowed;" onclick="alert('Materi ini khusus Premium. Silakan upgrade akun Anda.'); window.location.href='premium.html';">Terkunci (Premium)</button>`
+                            : `<a href="materi-detail.html?id=${m.id}" class="btn-primary" style="width: 100%; text-align: center; text-decoration: none; display: inline-block;">Baca Materi</a>`
+                        }
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+    } catch (e) {
+        console.error('Materi page error:', e);
+    }
+}
+
+async function initTimelinePage() {
+    try {
+        if (!window.location || !String(window.location.pathname || '').toLowerCase().endsWith('timeline.html')) return;
+        
+        const wrapper = document.querySelector('.content-wrapper');
+        if (!wrapper) return;
+
+        // Premium Check
+        const sb = await getSupabaseClient();
+        const { data: sessionData } = await sb.auth.getSession();
+        const user = sessionData && sessionData.session ? sessionData.session.user : null;
+        const premiumOk = user ? await isPremiumActive(sb, user.id) : false;
+
+        if (!premiumOk) {
+            wrapper.innerHTML = `
+                <div class="card" style="padding: 18px;">
+                    <div class="card-meta">Premium</div>
+                    <h3 class="card-title" style="margin-top: 6px;">Timeline & Peta Terkunci</h3>
+                    <p class="card-text">Upgrade Premium untuk membuka fitur peta dan timeline lengkap.</p>
+                    <div style="margin-top: 14px;">
+                        <a href="premium.html" class="btn-primary" style="display:inline-block; text-decoration:none;">Buka Premium</a>
+                    </div>
+                </div>`;
+            return;
+        }
+
+        const mapContainer = document.getElementById('leafletMap');
+        const eventsList = document.getElementById('eventsList');
+        const timelineHeader = document.querySelector('#timelineEvents .card-meta');
+        
+        if (!mapContainer || !eventsList) return;
+
+        // Initialize Leaflet Map
+        const map = L.map('leafletMap').setView([-2.5, 118], 5); // Center of Indonesia
+
+        // Base Layers
+        const streets = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        });
+
+        const satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+
+        // Add default layer
+        streets.addTo(map);
+
+        // Layer Controls
+        const baseMaps = {
+            "Peta Jalan": streets,
+            "Satelit": satellite
+        };
+
+        L.control.layers(baseMaps).addTo(map);
+
+        // --- Fitur Kontribusi ---
+        let isAddingMarker = false;
+        const btnContribute = document.getElementById('btnContribute');
+        const addMarkerInfo = document.getElementById('addMarkerInfo');
+        const contribModal = document.getElementById('contributionModal');
+        const btnCloseContrib = document.getElementById('btnCloseContrib');
+        const contribForm = document.getElementById('contribForm');
+
+        // Toggle Mode Tambah Marker
+        if (btnContribute) {
+            btnContribute.addEventListener('click', () => {
+                isAddingMarker = !isAddingMarker;
+                if (isAddingMarker) {
+                    btnContribute.innerHTML = '<i class="fas fa-times-circle"></i> Batal';
+                    btnContribute.style.background = '#e53935'; 
+                    addMarkerInfo.style.display = 'block';
+                    document.getElementById('leafletMap').style.cursor = 'crosshair';
+                    map.doubleClickZoom.disable(); 
+                } else {
+                    btnContribute.innerHTML = '<i class="fas fa-plus-circle"></i> Tambah Lokasi';
+                    btnContribute.style.background = ''; 
+                    addMarkerInfo.style.display = 'none';
+                    document.getElementById('leafletMap').style.cursor = '';
+                    map.doubleClickZoom.enable(); 
+                }
+            });
+        }
+
+        // Klik Peta untuk Tambah Marker
+        map.on('click', (e) => {
+            if (!isAddingMarker) return;
+
+            const { lat, lng } = e.latlng;
+            
+            // Isi hidden field koordinat
+            document.getElementById('markerLat').value = lat;
+            document.getElementById('markerLng').value = lng;
+
+            // Buka Modal
+            if (contribModal) {
+                contribModal.style.cssText = 'display: flex !important; opacity: 1 !important; visibility: visible !important;';
+                
+                void contribModal.offsetWidth;
+                setTimeout(() => {
+                    const content = contribModal.querySelector('.modal-content');
+                    if (content) content.classList.add('show');
+                }, 10);
+            }
+        });
+
+        // Tutup Modal
+        if (btnCloseContrib && contribModal) {
+            btnCloseContrib.addEventListener('click', () => {
+                const content = contribModal.querySelector('.modal-content');
+                if (content) content.classList.remove('show');
+                setTimeout(() => {
+                    contribModal.style.display = 'none';
+                }, 300);
+            });
+        }
+
+        // Submit Form Kontribusi
+        if (contribForm) {
+            contribForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const submitBtn = contribForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.textContent = 'Mengirim...';
+                submitBtn.disabled = true;
+
+                const title = document.getElementById('contribTitle').value;
+                const year = document.getElementById('contribYear').value;
+                const category = document.getElementById('contribCategory').value;
+                const desc = document.getElementById('contribDesc').value;
+                const source = document.getElementById('contribSource').value;
+                const lat = document.getElementById('markerLat').value;
+                const lng = document.getElementById('markerLng').value;
+
+                try {
+                    // Validasi User Login
+                    const sb = await getSupabaseClient();
+                    const { data: { user } } = await sb.auth.getUser();
+
+                    if (!user) {
+                        alert('Anda harus login untuk berkontribusi.');
+                        window.location.href = 'login.html';
+                        return;
+                    }
+
+                    // Simpan ke Supabase (Tabel: timeline_contributions)
+                    // Status default: 'pending'
+                    const { error } = await sb.from('timeline_contributions').insert({
+                        user_id: user.id,
+                        title,
+                        year,
+                        category,
+                        description: desc,
+                        source_url: source,
+                        latitude: lat,
+                        longitude: lng,
+                        status: 'pending' // Kunci anti-hoax
+                    });
+
+                    if (error) throw error;
+
+                    // Sukses
+                    alert('Terima kasih! Kontribusi Anda telah dikirim dan sedang menunggu moderasi admin.');
+                    
+                    // Reset UI
+                    contribForm.reset();
+                    isAddingMarker = false;
+                    btnContribute.innerHTML = '<i class="fas fa-plus-circle"></i> Tambah Lokasi';
+                    btnContribute.style.background = '';
+                    addMarkerInfo.style.display = 'none';
+                    document.getElementById('leafletMap').style.cursor = '';
+                    
+                    // Tutup Modal
+                    btnCloseContrib.click();
+
+                    // (Opsional) Tampilkan marker sementara warna kuning (Pending) hanya untuk user ini
+                    const pendingIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color:orange; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white;"></div>`,
+                        iconSize: [12, 12],
+                        iconAnchor: [6, 6]
+                    });
+                    
+                    L.marker([lat, lng], { icon: pendingIcon })
+                        .addTo(map)
+                        .bindPopup(`<b>${escapeHtml(title)}</b><br><span style="color:orange; font-size:12px;">Menunggu Verifikasi</span>`);
+
+                } catch (err) {
+                    console.error('Gagal kirim kontribusi:', err);
+                    alert('Gagal mengirim data. Pastikan semua field terisi dengan benar.');
+                } finally {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
+            });
+        }
+
+        const regionEvents = {
+            'Sumatera': {
+                coords: [-0.5897, 101.3431],
+                events: [
+                    { year: '1821-1837', title: 'Perang Padri', desc: 'Perang di Sumatera Barat antara kaum Padri dan kaum Adat, kemudian melawan Belanda.' },
+                    { year: '1873-1904', title: 'Perang Aceh', desc: 'Perlawanan sengit rakyat Aceh melawan kolonial Belanda.' },
+                    { year: '1945', title: 'Pertempuran Medan Area', desc: 'Aksi perlawanan rakyat Medan melawan tentara Sekutu dan NICA.' }
+                ]
+            },
+            'Jawa': {
+                coords: [-7.6145, 110.7122],
+                events: [
+                    { year: '1293', title: 'Berdirinya Majapahit', desc: 'Raden Wijaya mendirikan kerajaan Majapahit setelah mengalahkan tentara Mongol.' },
+                    { year: '1825-1830', title: 'Perang Diponegoro', desc: 'Perlawanan Pangeran Diponegoro melawan Belanda.' },
+                    { year: '1945', title: 'Resolusi Jihad', desc: 'Fatwa KH Hasyim Asy\'ari yang memicu Pertempuran 10 November.' }
+                ]
+            },
+            'Kalimantan': {
+                coords: [-0.0001, 113.9213],
+                events: [
+                    { year: '1859-1905', title: 'Perang Banjar', desc: 'Perlawanan Pangeran Antasari melawan Belanda di Kesultanan Banjar.' },
+                    { year: '1947', title: 'Pertempuran Sangasanga', desc: 'Aksi pejuang Kalimantan Timur mengusir penjajah Belanda.' }
+                ]
+            },
+            'Sulawesi': {
+                coords: [-1.9032, 120.8210],
+                events: [
+                    { year: '1666-1669', title: 'Perang Makassar', desc: 'Sultan Hasanuddin melawan monopoli perdagangan VOC.' },
+                    { year: '1946', title: 'Peristiwa Korban 40.000 Jiwa', desc: 'Pembantaian rakyat Sulawesi Selatan oleh pasukan Westerling.' }
+                ]
+            },
+            'Papua': {
+                coords: [-4.2699, 138.0803],
+                events: [
+                    { year: '1961', title: 'Trikora', desc: 'Komando Rakyat untuk membebaskan Irian Barat.' },
+                    { year: '1969', title: 'Pepera', desc: 'Penentuan Pendapat Rakyat yang menyatakan Papua resmi bagian dari NKRI.' }
+                ]
+            },
+            'Bali & Nusa Tenggara': {
+                coords: [-8.3405, 115.0920],
+                events: [
+                    { year: '1846-1849', title: 'Perang Jagaraga', desc: 'Perlawanan rakyat Bali melawan invasi Belanda.' },
+                    { year: '1946', title: 'Puputan Margarana', desc: 'Pertempuran habis-habisan I Gusti Ngurah Rai.' }
+                ]
+            },
+            'Maluku': {
+                coords: [-3.2384, 130.1453],
+                events: [
+                    { year: '1817', title: 'Perlawanan Pattimura', desc: 'Thomas Matulessy memimpin rakyat Maluku merebut Benteng Duurstede.' },
+                    { year: '1521', title: 'Ekspedisi Magellan', desc: 'Kedatangan bangsa Spanyol pertama kali di Maluku.' }
+                ]
+            }
+        };
+
+        Object.keys(regionEvents).forEach(regionName => {
+            const region = regionEvents[regionName];
+            const marker = L.marker(region.coords).addTo(map);
+            
+            marker.bindTooltip(regionName);
+
+            marker.on('click', () => {
+                const events = region.events;
+                if (timelineHeader) timelineHeader.textContent = `Linimasa: ${regionName}`;
+                
+                if (events.length > 0) {
+                    eventsList.innerHTML = events.map(ev => `
+                        <div class="event-card fade-in">
+                            <span class="event-year">${escapeHtml(ev.year)}</span>
+                            <h4 class="event-title">${escapeHtml(ev.title)}</h4>
+                            <p class="event-desc">${escapeHtml(ev.desc)}</p>
+                        </div>
+                    `).join('');
+                } else {
+                    eventsList.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1/-1;">
+                            <p style="color: #888;">Belum ada data peristiwa untuk wilayah ini.</p>
+                        </div>
+                    `;
+                }
+                eventsList.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            });
+        });
+
+        // --- Load Kontribusi yang Disetujui ---
+        // (Opsional) Jika tabel timeline_contributions sudah ada dan punya data approved
+        try {
+            const sb = await getSupabaseClient();
+            const { data: contribs } = await sb
+                .from('timeline_contributions')
+                .select('*')
+                .eq('status', 'approved');
+
+            if (contribs && contribs.length > 0) {
+                contribs.forEach(c => {
+                    if (c.latitude && c.longitude) {
+                        const marker = L.marker([c.latitude, c.longitude]).addTo(map);
+                        
+                        // Hover untuk tooltip cepat
+                        marker.bindTooltip(`<b>${escapeHtml(c.title)}</b> (${escapeHtml(c.year)})`, {
+                            direction: 'top',
+                            offset: [0, -30]
+                        });
+
+                        // Klik untuk detail di panel bawah
+                        marker.on('click', () => {
+                            if (timelineHeader) timelineHeader.textContent = `Kontribusi User: ${c.title}`;
+                            
+                            eventsList.innerHTML = `
+                                <div class="event-card fade-in" style="border-left: 4px solid var(--primary);">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span class="event-year">${escapeHtml(c.year)}</span>
+                                        <span style="font-size:12px; background:#e3f2fd; color:#0d47a1; padding:2px 8px; border-radius:12px;">${escapeHtml(c.category)}</span>
+                                    </div>
+                                    <h4 class="event-title">${escapeHtml(c.title)}</h4>
+                                    <p class="event-desc">${escapeHtml(c.description)}</p>
+                                    <div style="margin-top:10px; font-size:12px; color:#666;">
+                                        <i class="fas fa-link"></i> Sumber: <a href="${escapeHtml(c.source_url)}" target="_blank" style="color:var(--primary); text-decoration:none;">Lihat Referensi</a>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            eventsList.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        });
+                    }
+                });
+            }
+        } catch (err) {
+            // Ignore error if table not exists yet
+        }
+
+    } catch (e) {
+        console.error('Timeline error:', e);
+    }
+}
+
 async function initShopCheckoutPage() {
     try {
         if (!window.location || !String(window.location.pathname || '').toLowerCase().endsWith('shop-checkout.html')) return;
@@ -39,12 +485,15 @@ async function initShopCheckoutPage() {
         const price = typeof prod.price === 'number' ? prod.price : Number(prod.price || 0);
         const shipping = 15000;
         const fee = 2000;
+        const userBadges = (profile && typeof profile.badges === 'number') ? profile.badges : 0;
+
         const calcTotal = (qty) => {
             const q = Number(qty);
             const safeQty = Number.isFinite(q) && q > 0 ? Math.floor(q) : 1;
             const subtotal = price * safeQty;
-            const total = subtotal + shipping + fee;
-            return { safeQty, subtotal, total };
+            const discount = Math.min(userBadges, subtotal);
+            const total = subtotal - discount + shipping + fee;
+            return { safeQty, subtotal, total, discount };
         };
 
         const meta = user && user.user_metadata ? user.user_metadata : {};
@@ -83,6 +532,7 @@ async function initShopCheckoutPage() {
                         <div style="margin-top: 10px; font-size: 14px;">
                             <div style="display:flex; justify-content:space-between; gap:10px;"><span>Harga buku</span><b id="bookUnitPrice">Rp ${escapeHtml(formatRupiah(price))}</b></div>
                             <div style="display:flex; justify-content:space-between; gap:10px;"><span>Subtotal</span><b id="bookSubtotal">Rp ${escapeHtml(formatRupiah(price))}</b></div>
+                            <div style="display:flex; justify-content:space-between; gap:10px; color: var(--primary);"><span>Diskon Badge (${userBadges})</span><b id="bookDiscount">-Rp 0</b></div>
                             <div style="display:flex; justify-content:space-between; gap:10px;"><span>Ongkir</span><b>Rp ${escapeHtml(formatRupiah(shipping))}</b></div>
                             <div style="display:flex; justify-content:space-between; gap:10px;"><span>Biaya layanan</span><b>Rp ${escapeHtml(formatRupiah(fee))}</b></div>
                             <div style="margin-top: 10px; display:flex; justify-content:space-between; gap:10px; font-size:15px;"><span>Total</span><b id="bookTotal">Rp ${escapeHtml(formatRupiah(price + shipping + fee))}</b></div>
@@ -108,13 +558,15 @@ async function initShopCheckoutPage() {
 
         const qtyInput = document.getElementById('buyQty');
         const subtotalEl = document.getElementById('bookSubtotal');
+        const discountEl = document.getElementById('bookDiscount');
         const totalEl = document.getElementById('bookTotal');
 
         const renderTotals = () => {
             const qtyRaw = qtyInput ? qtyInput.value : '1';
-            const { safeQty, subtotal, total } = calcTotal(qtyRaw);
+            const { safeQty, subtotal, total, discount } = calcTotal(qtyRaw);
             if (qtyInput) qtyInput.value = String(safeQty);
             if (subtotalEl) subtotalEl.textContent = `Rp ${formatRupiah(subtotal)}`;
+            if (discountEl) discountEl.textContent = `-Rp ${formatRupiah(discount)}`;
             if (totalEl) totalEl.textContent = `Rp ${formatRupiah(total)}`;
         };
 
@@ -127,7 +579,7 @@ async function initShopCheckoutPage() {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const qtyRaw = String((document.getElementById('buyQty') || {}).value || '1');
-            const { safeQty, subtotal, total } = calcTotal(qtyRaw);
+            const { safeQty, subtotal, total, discount } = calcTotal(qtyRaw);
             const name = String((document.getElementById('buyerName') || {}).value || '').trim();
             const phone = String((document.getElementById('buyerPhone') || {}).value || '').trim();
             const address = String((document.getElementById('buyerAddress') || {}).value || '').trim();
@@ -138,7 +590,7 @@ async function initShopCheckoutPage() {
                 return;
             }
 
-            const msg = `Halo Admin, saya ingin membeli buku di Toko.\n\nProduk: ${prod.name || 'Produk'}\nJumlah: ${safeQty}\nHarga satuan: Rp ${formatRupiah(price)}\nSubtotal: Rp ${formatRupiah(subtotal)}\nOngkir: Rp ${formatRupiah(shipping)}\nBiaya layanan: Rp ${formatRupiah(fee)}\nTotal: Rp ${formatRupiah(total)}\n\nNama: ${name}\nNo HP: ${phone}\nAlamat: ${address}${note ? `\nCatatan: ${note}` : ''}`;
+            const msg = `Halo Admin, saya ingin membeli buku di Toko.\n\nProduk: ${prod.name || 'Produk'}\nJumlah: ${safeQty}\nHarga satuan: Rp ${formatRupiah(price)}\nSubtotal: Rp ${formatRupiah(subtotal)}\nDiskon Badge: -Rp ${formatRupiah(discount)}\nOngkir: Rp ${formatRupiah(shipping)}\nBiaya layanan: Rp ${formatRupiah(fee)}\nTotal: Rp ${formatRupiah(total)}\n\nNama: ${name}\nNo HP: ${phone}\nAlamat: ${address}${note ? `\nCatatan: ${note}` : ''}`;
             const waLink = buildWhatsAppLink(ADMIN_WA_NUMBER, msg);
 
             try {
@@ -380,60 +832,122 @@ async function initQuizDetailPage() {
                 return;
             }
 
-            let score = 0;
+            // Hitung Skor
+            let correctCount = 0;
             qs.forEach((q) => {
                 const selectedOptId = answers.get(q.id);
-                if (!selectedOptId) return;
-                const qOpts = optionsByQuestion.get(q.id) || [];
-                const chosen = qOpts.find((o) => String(o.id) === selectedOptId);
-                if (chosen && chosen.is_correct === true) score += 1;
+                if (selectedOptId) {
+                    const qOpts = optionsByQuestion.get(q.id) || [];
+                    const chosen = qOpts.find((o) => String(o.id) === selectedOptId);
+                    if (chosen && chosen.is_correct) correctCount++;
+                }
             });
 
-            const total = qs.length;
+            const totalQuestions = qs.length;
+            const finalScore = Math.round((correctCount / totalQuestions) * 100);
+            const xpEarned = correctCount * 10; // 10 XP per jawaban benar
+            const badgesEarned = Math.floor(correctCount / 2); // 2 benar = 1 badge
 
-            let isRetake = false;
+            // Tampilkan Modal Hasil (Langsung)
+            // Cari modal di seluruh document (bukan cuma di dalam root)
+            let modal = document.getElementById('quizResultModal');
+            
+            // Jika tidak ketemu, coba buat manual (fallback)
+            if (!modal) {
+                console.log('Modal tidak ditemukan, membuat modal baru...');
+                modal = document.createElement('div');
+                modal.id = 'quizResultModal';
+                modal.className = 'modal-overlay';
+                modal.innerHTML = `
+                    <div class="modal-content fade-in-up">
+                        <div style="text-align: center;">
+                            <div class="result-icon-wrapper">
+                                <i class="fas fa-trophy" style="font-size: 40px; color: #FFD700;"></i>
+                            </div>
+                            <h2 style="margin-top: 16px; color: var(--text);">Selamat!</h2>
+                            <p style="color: var(--text-light); margin-top: 8px;">Kamu telah menyelesaikan kuis ini.</p>
+                            
+                            <div class="result-stats" style="margin-top: 24px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                                <div class="stat-box">
+                                    <div class="stat-value" id="resultScore">0</div>
+                                    <div class="stat-label">Skor</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-value" id="resultCorrect">0</div>
+                                    <div class="stat-label">Benar</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-value" id="resultXP">+0</div>
+                                    <div class="stat-label">XP</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-value" id="resultBadges">+0</div>
+                                    <div class="stat-label">Badge</div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 24px;">
+                                <div class="badge-reward" style="background: rgba(255, 215, 0, 0.1); padding: 12px; border-radius: 12px; border: 1px dashed #FFD700; display: inline-flex; align-items: center; gap: 10px;">
+                                    <i class="fas fa-medal" style="color: #FFD700; font-size: 20px;"></i>
+                                    <span style="font-weight: 600; color: #B8860B;">Badge Baru Terbuka!</span>
+                                </div>
+                            </div>
+
+                            <div style="margin-top: 30px; display: flex; gap: 10px;">
+                                <a href="quizzes.html" class="btn-primary" style="flex: 1; text-align: center; text-decoration: none;">Kembali ke Daftar</a>
+                                <button onclick="location.reload()" class="btn-secondary" style="flex: 1;">Ulangi</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+
+            if (modal) {
+                console.log('Menampilkan modal...');
+                const scoreEl = modal.querySelector('#resultScore');
+                const correctEl = modal.querySelector('#resultCorrect');
+                const xpEl = modal.querySelector('#resultXP');
+                const badgeEl = modal.querySelector('#resultBadges');
+                
+                if (scoreEl) scoreEl.textContent = correctCount * 10; 
+                if (correctEl) correctEl.textContent = `${correctCount}/${totalQuestions}`;
+                if (xpEl) xpEl.textContent = `+${xpEarned}`;
+                if (badgeEl) badgeEl.textContent = `+${badgesEarned}`;
+                
+                // Gunakan inline style untuk memaksa tampil
+                modal.style.cssText = 'display: flex !important; opacity: 1 !important; visibility: visible !important;';
+                
+                // Animasi konten
+                const content = modal.querySelector('.modal-content');
+                if (content) {
+                    // Reset dulu
+                    content.classList.remove('show');
+                    void content.offsetWidth;
+                    // Tampilkan
+                    setTimeout(() => content.classList.add('show'), 50);
+                }
+            } else {
+                console.error('Gagal membuat modal');
+                alert(`Skor kamu: ${correctCount * 10}`);
+                window.location.href = 'quizzes.html';
+            }
+
+            // Simpan ke database (background process)
             try {
-                const { data: existingAttempt } = await sb
-                    .from('quiz_attempts')
-                    .select('user_id, quiz_id')
-                    .eq('user_id', user.id)
-                    .eq('quiz_id', quiz.id)
-                    .maybeSingle();
-                isRetake = Boolean(existingAttempt);
-            } catch (e) {
-                // ignore
-            }
-
-            const pointsEarned = isRetake ? 0 : score * 10;
-            const badgesEarned = isRetake ? 0 : score / 2;
-
-            const { error: attemptErr } = await sb
-                .from('quiz_attempts')
-                .upsert(
-                    {
+                const { data: { user } } = await sb.auth.getUser();
+                if (user) {
+                    await sb.from('quiz_attempts').upsert({
                         user_id: user.id,
-                        quiz_id: quiz.id,
-                        score,
-                        total_questions: total,
-                        points_earned: pointsEarned,
-                    },
-                    { onConflict: 'user_id,quiz_id' }
-                );
-
-            if (attemptErr) {
-                const rawMsg = String(attemptErr.message || '').toLowerCase();
-                const permissionHint = rawMsg.includes('row-level security') || rawMsg.includes('permission denied') || rawMsg.includes('rls');
-                const suffix = permissionHint
-                    ? 'Izin menyimpan hasil belum aktif. (Perlu RLS policy untuk quiz attempts)'
-                    : 'Gagal menyimpan hasil. Coba lagi.';
-                result.innerHTML = `<div class="card" style="padding: 16px;">Skor kamu: <b>${escapeHtml(String(score))}/${escapeHtml(String(total))}</b>. ${escapeHtml(suffix)}</div>`;
-                return;
+                        quiz_id: quizId,
+                        score: correctCount, 
+                        total_questions: totalQuestions,
+                        points_earned: xpEarned
+                    }, { onConflict: 'user_id,quiz_id' });
+                }
+            } catch (err) {
+                console.error('Gagal simpan skor:', err);
             }
-
-            const rewardText = isRetake
-                ? 'Kuis sudah selesai. Kamu boleh ulang untuk latihan, tapi reward tidak bertambah.'
-                : `Badge +${escapeHtml(String(badgesEarned))} • Poin +${escapeHtml(String(pointsEarned))}`;
-            result.innerHTML = `<div class="card" style="padding: 16px;">Skor kamu: <b>${escapeHtml(String(score))}/${escapeHtml(String(total))}</b>. ${rewardText}.</div>`;
         });
     } catch (e) {
         // ignore
@@ -519,6 +1033,54 @@ async function initContentDetailPage() {
                         window.location.href = `content-detail.html?id=${encodeURIComponent(r.id)}`;
                     };
                 });
+            }
+        }
+
+        // Logic Tandai Selesai
+        const markBtn = document.getElementById('markAsReadBtn');
+        if (markBtn) {
+            const sb = await getSupabaseClient();
+            const { data: { user } } = await sb.auth.getSession();
+            
+            if (user) {
+                // Cek status baca
+                const { data: readData } = await sb.from('user_reads')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('material_id', materiId)
+                    .maybeSingle();
+                
+                if (readData) {
+                     markBtn.disabled = true;
+                     markBtn.innerHTML = '<i class="fas fa-check-double"></i> Sudah Dibaca';
+                     markBtn.style.opacity = '0.7';
+                }
+
+                markBtn.onclick = async () => {
+                    try {
+                        markBtn.disabled = true;
+                        markBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+                        
+                        const { data: success, error } = await sb.rpc('register_read', { 
+                            p_user_id: user.id, 
+                            p_material_id: materiId 
+                        });
+
+                        if (error) throw error;
+
+                        if (success) {
+                            alert('Materi selesai! Kamu mendapatkan +10 XP.');
+                            markBtn.innerHTML = '<i class="fas fa-check-double"></i> Sudah Dibaca';
+                        } else {
+                            markBtn.innerHTML = '<i class="fas fa-check-double"></i> Sudah Dibaca';
+                        }
+                    } catch (err) {
+                        console.error('Gagal tandai selesai:', err);
+                        markBtn.disabled = false;
+                        markBtn.innerHTML = '<i class="fas fa-check-circle"></i> Tandai Selesai';
+                        alert('Gagal memproses permintaan.');
+                    }
+                };
             }
         }
     } catch (e) {
@@ -1035,22 +1597,6 @@ async function initPremiumPaymentPage() {
     }
 }
 
-async function initTimelineGate() {
-    try {
-        if (!window.location || !String(window.location.pathname || '').toLowerCase().endsWith('timeline.html')) return;
-        const wrapper = document.querySelector('.content-wrapper');
-        if (!wrapper) return;
-        const sb = await getSupabaseClient();
-        const { data: sessionData } = await sb.auth.getSession();
-        const user = sessionData && sessionData.session ? sessionData.session.user : null;
-        const premiumOk = user ? await isPremiumActive(sb, user.id) : false;
-        if (premiumOk) return;
-        wrapper.innerHTML = `<div class="card" style="padding: 18px;"><div class="card-meta">Premium</div><h3 class="card-title" style="margin-top: 6px;">Timeline & Peta Terkunci</h3><p class="card-text">Upgrade Premium untuk membuka fitur peta dan timeline lengkap.</p><div style="margin-top: 14px;"><a href="premium.html" class="btn-primary" style="display:inline-block; text-decoration:none;">Buka Premium</a></div></div>`;
-    } catch (e) {
-        // ignore
-    }
-}
-
 async function initShopPage() {
     if (window.location && String(window.location.pathname || '').toLowerCase().endsWith('shop-checkout.html')) return;
     if (window.location && !String(window.location.pathname || '').toLowerCase().endsWith('shop.html')) return;
@@ -1525,66 +2071,40 @@ async function initProfilePage() {
         if (profile) updateCommonUserUI(profile);
         if (!user || !profile) return;
 
-        let materiSelesai = 0;
-        let badgeCount = 0;
-        let exp = 0;
+    // Load Data
+    let materiSelesai = 0;
+    let badgeCount = 0;
+    let exp = 0;
 
-        const { data: readsForCount, error: readsCountErr } = await sb
-            .from('daily_materi_reads')
-            .select('materi_id, read_at')
-            .eq('user_id', user.id)
-            .order('read_at', { ascending: false })
-            .limit(1000);
+    // Ambil data profile terbaru (force refresh dari DB)
+    const { data: latestProfile } = await sb
+        .from('profiles')
+        .select('xp, badges, materials_read_count')
+        .eq('id', user.id)
+        .single();
+    
+    if (latestProfile) {
+        exp = latestProfile.xp ?? 0;
+        badgeCount = latestProfile.badges ?? 0;
+        materiSelesai = latestProfile.materials_read_count ?? 0;
+    }
 
-        if (!readsCountErr) {
-            const unique = new Set();
-            (Array.isArray(readsForCount) ? readsForCount : []).forEach((r) => {
-                if (r && r.materi_id != null) unique.add(r.materi_id);
-            });
-            materiSelesai = unique.size;
-        }
+    // Update UI Stats
+    const statsValues = document.querySelectorAll('.profile-stats .profile-stat-value');
+    if (statsValues && statsValues.length >= 3) {
+        statsValues[0].textContent = String(materiSelesai);
+        statsValues[1].textContent = String(badgeCount);
+        statsValues[2].textContent = String(exp);
+    }
 
-        const { data: attemptsForBadges, error: attemptsErr } = await sb
-            .from('quiz_attempts')
-            .select('score')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false })
-            .limit(1000);
-
-        if (!attemptsErr) {
-            const totalCorrect = (Array.isArray(attemptsForBadges) ? attemptsForBadges : []).reduce((sum, r) => {
-                const v = r && typeof r.score === 'number' ? r.score : 0;
-                return sum + v;
-            }, 0);
-            badgeCount = totalCorrect / 2;
-            exp = Math.floor(badgeCount / 25) * 20;
-        } else {
-            const { count: quizCount } = await sb
-                .from('quiz_attempts')
-                .select('id', { count: 'exact', head: true })
-                .eq('user_id', user.id);
-            badgeCount = quizCount || 0;
-            exp = 0;
-            if (typeof console !== 'undefined' && console && typeof console.warn === 'function') {
-                console.warn('Tidak bisa membaca quiz_attempts.score (kemungkinan RLS). Badge ditampilkan sebagai jumlah attempt (fallback).', attemptsErr);
-            }
-        }
-
-        const statsValues = document.querySelectorAll('.profile-stats .profile-stat-value');
-        if (statsValues && statsValues.length >= 3) {
-            statsValues[0].textContent = String(materiSelesai);
-            statsValues[1].textContent = String(badgeCount);
-            statsValues[2].textContent = String(exp);
-        }
-
-        const savedMenu = Array.from(document.querySelectorAll('.menu-item-content p')).find((p) => String(p.textContent || '').includes('materi tersimpan'));
-        if (savedMenu) {
-            const { count: favCount } = await sb
-                .from('user_favorites')
-                .select('materi_id', { count: 'exact', head: true })
-                .eq('user_id', user.id);
-            savedMenu.textContent = `${favCount || 0} materi tersimpan`;
-        }
+    const savedMenu = Array.from(document.querySelectorAll('.menu-item-content p')).find((p) => String(p.textContent || '').includes('materi tersimpan'));
+    if (savedMenu) {
+        const { count: favCount } = await sb
+            .from('user_favorites')
+            .select('materi_id', { count: 'exact', head: true })
+            .eq('user_id', user.id);
+        savedMenu.textContent = `${favCount || 0} materi tersimpan`;
+    }
     } catch (e) {
         // ignore
     }
@@ -1604,8 +2124,316 @@ function initDataPages() {
     initTasksPage();
     initPremiumPage();
     initPremiumPaymentPage();
-    initTimelineGate();
     initShopPage();
     initShopCheckoutPage();
     initTokohPage();
+    initAchievementPage();
+    initShopPage();
+    initShopCheckoutPage();
+    initTokohPage();
+    initAchievementPage();
+    initCommunityPage();
+    initChatRoomPage();
+}
+
+async function initChatRoomPage() {
+    try {
+        if (!window.location || !String(window.location.pathname || '').toLowerCase().endsWith('chat-room.html')) return;
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomId = urlParams.get('id');
+        if (!roomId) {
+            window.location.href = 'community.html';
+            return;
+        }
+
+        const sb = await getSupabaseClient();
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) {
+            window.location.href = 'login.html';
+            return;
+        }
+
+        // Get Room Info
+        const { data: room, error: roomError } = await sb
+            .from('chat_rooms')
+            .select('*')
+            .eq('id', roomId)
+            .single();
+
+        if (roomError || !room) {
+            alert('Room tidak ditemukan.');
+            window.location.href = 'community.html';
+            return;
+        }
+
+        // Update UI Header
+        const roomTitle = document.getElementById('roomTitle');
+        if (roomTitle) roomTitle.textContent = room.title;
+
+        // Chat Logic
+        const chatMessages = document.getElementById('chatMessages');
+        const chatForm = document.getElementById('chatForm');
+        const chatInput = document.getElementById('chatInput');
+
+        // Ambil profil user untuk nama & avatar
+        const { data: profile } = await sb.from('profiles').select('username, full_name, avatar_url').eq('id', user.id).single();
+        const myName = profile ? (profile.full_name || profile.username || 'User') : 'User';
+        const myAvatar = profile && profile.avatar_url ? profile.avatar_url : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100';
+
+        // Fungsi Render Pesan
+        const renderMessage = (msg, isMine) => {
+            const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const bubbleHtml = `
+                <div style="display: flex; gap: 10px; ${isMine ? 'flex-direction: row-reverse;' : ''} align-items: flex-end; margin-bottom: 4px;">
+                    ${!isMine ? `<img src="${msg.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-bottom: 4px;">` : ''}
+                    <div style="max-width: 70%;">
+                        ${!isMine ? `<div style="font-size: 11px; color: var(--text-light); margin-bottom: 2px; margin-left: 4px;">${escapeHtml(msg.sender_name || 'User')}</div>` : ''}
+                        <div style="padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-wrap: break-word; 
+                            ${isMine ? 'background: var(--primary); color: white; border-bottom-right-radius: 4px;' : 'background: white; border: 1px solid var(--border); border-bottom-left-radius: 4px;'}">
+                            ${escapeHtml(msg.content)}
+                        </div>
+                        <div style="font-size: 10px; color: var(--text-light); margin-top: 2px; ${isMine ? 'text-align: right; margin-right: 4px;' : 'margin-left: 4px;'}">
+                            ${time}
+                        </div>
+                    </div>
+                </div>
+            `;
+            chatMessages.insertAdjacentHTML('beforeend', bubbleHtml);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        };
+
+        // Load Pesan Terakhir
+        const loadMessages = async () => {
+            const { data, error } = await sb
+                .from('messages') // Pastikan nama tabel sesuai ('messages' atau 'chat_messages')
+                .select('*')
+                .eq('room_id', roomId)
+                .order('created_at', { ascending: false })
+                .limit(50);
+
+            if (!error && data) {
+                chatMessages.innerHTML = ''; // Clear loading msg
+                // Balik urutan agar yang lama di atas
+                data.reverse().forEach(msg => {
+                    renderMessage(msg, msg.user_id === user.id);
+                });
+            } else {
+                chatMessages.innerHTML = '<div style="text-align: center; color: var(--text-light); padding: 20px;">Belum ada pesan. Mulai obrolan!</div>';
+            }
+        };
+
+        await loadMessages();
+
+        // Subscribe Realtime
+        const channel = sb
+            .channel(`room:${roomId}`)
+            .on('postgres_changes', { 
+                event: 'INSERT', 
+                schema: 'public', 
+                table: 'messages',
+                filter: `room_id=eq.${roomId}`
+            }, (payload) => {
+                const msg = payload.new;
+                if (msg.user_id !== user.id) {
+                    renderMessage(msg, false);
+                }
+            })
+            .subscribe();
+
+        // Handle Kirim Pesan
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            if (!text) return;
+
+            // Optimistic UI
+            const optimisticMsg = {
+                content: text,
+                created_at: new Date().toISOString(),
+                sender_name: myName,
+                avatar_url: myAvatar,
+                user_id: user.id
+            };
+            renderMessage(optimisticMsg, true);
+            chatInput.value = '';
+
+            // Kirim ke DB
+            const { error } = await sb.from('messages').insert({
+                room_id: roomId,
+                user_id: user.id,
+                content: text,
+                sender_name: myName,
+                avatar_url: myAvatar
+            });
+
+            if (error) {
+                console.error('Gagal kirim pesan:', error);
+                alert('Gagal mengirim pesan.');
+            }
+        });
+
+    } catch (e) {
+        console.error('Chat room error:', e);
+    }
+}
+
+async function initCommunityPage() {
+    try {
+        if (!window.location || !String(window.location.pathname || '').toLowerCase().endsWith('community.html')) return;
+        
+        const contentWrapper = document.querySelector('.content-wrapper');
+        if (!contentWrapper) return;
+
+        // Render UI Daftar Room
+        contentWrapper.innerHTML = `
+            <div class="section-header">
+                <h2 class="section-title">💬 Komunitas</h2>
+                <button class="btn-primary" style="padding: 8px 16px; font-size: 13px;" onclick="alert('Fitur buat room segera hadir!')">
+                    <i class="fas fa-plus"></i> Buat Room
+                </button>
+            </div>
+
+            <div id="roomList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+                <div style="text-align: center; padding: 40px; color: var(--text-light); grid-column: 1 / -1;">
+                    <i class="fas fa-spinner fa-spin"></i> Memuat ruang diskusi...
+                </div>
+            </div>
+        `;
+
+        const sb = await getSupabaseClient();
+        const roomList = document.getElementById('roomList');
+
+        // Ambil daftar room dari database
+        const { data: rooms, error } = await sb
+            .from('chat_rooms')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            roomList.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-light); grid-column: 1 / -1;">Gagal memuat data.</div>`;
+            return;
+        }
+
+        if (!rooms || rooms.length === 0) {
+            // Jika kosong, buat room default (Diskusi Umum)
+            await sb.from('chat_rooms').insert({
+                title: 'Diskusi Umum',
+                description: 'Tempat ngobrol santai seputar sejarah dan pelajaran.',
+                type: 'public',
+                avatar_url: 'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=300'
+            });
+            window.location.reload(); // Refresh untuk memuat room baru
+            return;
+        }
+
+        roomList.innerHTML = rooms.map(room => `
+            <div class="card" onclick="window.location.href='chat-room.html?id=${room.id}'" style="cursor: pointer; transition: transform 0.2s;">
+                <div style="display: flex; align-items: center; padding: 16px;">
+                    <img src="${room.avatar_url || 'assets/img/icon.png'}" style="width: 50px; height: 50px; border-radius: 12px; object-fit: cover; margin-right: 16px;">
+                    <div style="flex: 1;">
+                        <h3 class="card-title" style="margin-bottom: 4px; font-size: 16px;">${escapeHtml(room.title)}</h3>
+                        <p class="card-text" style="font-size: 13px; line-height: 1.4;">${escapeHtml(room.description || 'Tidak ada deskripsi')}</p>
+                    </div>
+                    <div style="margin-left: 10px;">
+                        <i class="fas fa-chevron-right" style="color: var(--text-light);"></i>
+                    </div>
+                </div>
+                <div class="card-footer" style="padding: 12px 16px; background: #f8f9fa; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 12px; color: var(--text-light);"><i class="fas fa-users"></i> ${Math.floor(Math.random() * 50) + 10} Anggota</span>
+                    <span style="font-size: 12px; color: var(--primary); font-weight: 600;">Masuk</span>
+                </div>
+            </div>
+        `).join('');
+
+    } catch (e) {
+        console.error('Community page error:', e);
+    }
+}
+
+async function initAchievementPage() {
+    try {
+        if (!window.location || !String(window.location.pathname || '').toLowerCase().endsWith('achievement.html')) return;
+        const root = document.getElementById('achievementRoot');
+        if (!root) return;
+
+        const sb = await getSupabaseClient();
+        const { data: users, error } = await sb
+            .from('profiles')
+            .select('id, full_name, username, avatar_url, xp, level, badges')
+            .order('xp', { ascending: false })
+            .limit(10);
+
+        if (error) {
+            root.innerHTML = `<div style="text-align: center; padding: 20px;">Gagal memuat leaderboard.</div>`;
+            return;
+        }
+
+        if (!users || users.length === 0) {
+            root.innerHTML = `<div style="text-align: center; padding: 20px;">Belum ada data.</div>`;
+            return;
+        }
+
+        // Pisahkan Top 3
+        const top3 = users.slice(0, 3);
+        const rest = users.slice(3);
+
+        let podiumHtml = '';
+        if (top3.length > 0) {
+            // Urutan podium: 2 (kiri), 1 (tengah), 3 (kanan)
+            const order = [1, 0, 2]; // Index di array top3
+            
+            podiumHtml = `<div style="display: flex; justify-content: center; align-items: flex-end; gap: 15px; margin-bottom: 40px; padding-top: 20px;">`;
+            
+            order.forEach(i => {
+                if (!top3[i]) return;
+                const u = top3[i];
+                const rank = i + 1;
+                const isFirst = rank === 1;
+                const height = isFirst ? '180px' : (rank === 2 ? '140px' : '110px');
+                const color = isFirst ? '#FFD700' : (rank === 2 ? '#C0C0C0' : '#CD7F32');
+                const name = escapeHtml(u.full_name || u.username || 'User');
+                const avatar = u.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100';
+
+                podiumHtml += `
+                <div style="text-align: center; display: flex; flex-direction: column; align-items: center; width: ${isFirst ? '120px' : '100px'};">
+                    <div style="position: relative; margin-bottom: 10px;">
+                        <img src="${avatar}" style="width: ${isFirst ? '80px' : '60px'}; height: ${isFirst ? '80px' : '60px'}; border-radius: 50%; border: 3px solid ${color}; object-fit: cover;">
+                        <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); background: ${color}; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; border: 2px solid white;">${rank}</div>
+                    </div>
+                    <div style="font-weight: 600; font-size: ${isFirst ? '16px' : '14px'}; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${name}</div>
+                    <div style="font-size: 12px; color: var(--primary); font-weight: bold;">${u.xp || 0} XP</div>
+                    <div style="width: 100%; height: ${height}; background: linear-gradient(to top, ${color}20, ${color}00); border-top: 4px solid ${color}; border-radius: 8px 8px 0 0; margin-top: 10px;"></div>
+                </div>`;
+            });
+            podiumHtml += `</div>`;
+        }
+
+        let listHtml = '';
+        if (rest.length > 0) {
+            listHtml = `<div style="background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">`;
+            rest.forEach((u, idx) => {
+                const rank = idx + 4;
+                const name = escapeHtml(u.full_name || u.username || 'User');
+                const avatar = u.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100';
+                
+                listHtml += `
+                <div style="display: flex; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border);">
+                    <div style="width: 30px; font-weight: bold; color: var(--text-light);">${rank}</div>
+                    <img src="${avatar}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 15px;">
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600;">${name}</div>
+                        <div style="font-size: 12px; color: var(--text-light);">Level ${u.level || 1} • ${u.badges || 0} Badge</div>
+                    </div>
+                    <div style="font-weight: bold; color: var(--primary);">${u.xp || 0} XP</div>
+                </div>`;
+            });
+            listHtml += `</div>`;
+        }
+
+        root.innerHTML = podiumHtml + listHtml;
+
+    } catch (e) {
+        console.error('Achievement page error:', e);
+    }
 }

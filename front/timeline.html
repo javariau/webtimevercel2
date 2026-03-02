@@ -6,6 +6,9 @@
     <title>TimeTrack - Timeline Sejarah</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet.js for Real Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
 
@@ -60,7 +63,7 @@
                 <a class="user-profile" href="profile.html" style="text-decoration: none; color: inherit;">
                     <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
                     <div class="user-info">
-                        <div class="user-name">Ahmad Fauzi</div>
+                        <div class="user-name">...</div>
                         <div class="user-role">Pelajar Aktif</div>
                     </div>
                     <i class="fas fa-chevron-right" style="color: var(--text-light); font-size: 12px;"></i>
@@ -113,46 +116,31 @@
                 <div class="card" style="padding: 18px; overflow: hidden;">
                     <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
                         <div>
-                            <div class="card-meta">Tampilan sementara</div>
-                            <h3 class="card-title" style="margin-top: 6px;">Peta Indonesia</h3>
-                            <p class="card-text" style="max-width: 720px;">Nanti timeline akan ditampilkan berdasarkan titik/area di peta. Untuk sekarang ini baru tampilan peta saja.</p>
+                            <div class="card-meta">Peta Interaktif</div>
+                            <h3 class="card-title" style="margin-top: 6px;">Eksplorasi Sejarah per Wilayah</h3>
+                            <p class="card-text" style="max-width: 720px;">Klik pada pulau untuk melihat peristiwa bersejarah di wilayah tersebut.</p>
                         </div>
+                        <button id="btnContribute" class="btn-primary" style="display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-plus-circle"></i> Tambah Lokasi
+                        </button>
                     </div>
-                    <div style="margin-top: 14px; background: linear-gradient(180deg, rgba(43,92,165,0.08), rgba(43,92,165,0.02)); border-radius: 14px; padding: 14px;">
-                        <svg viewBox="0 0 900 320" role="img" aria-label="Peta Indonesia (placeholder)" style="width: 100%; height: auto; display: block;">
-                            <defs>
-                                <linearGradient id="sea" x1="0" x2="0" y1="0" y2="1">
-                                    <stop offset="0" stop-color="#EAF2FF" />
-                                    <stop offset="1" stop-color="#F7FAFF" />
-                                </linearGradient>
-                                <linearGradient id="land" x1="0" x2="1" y1="0" y2="1">
-                                    <stop offset="0" stop-color="#2B5CA5" stop-opacity="0.85" />
-                                    <stop offset="1" stop-color="#5B8FE3" stop-opacity="0.85" />
-                                </linearGradient>
-                            </defs>
-                            <rect x="0" y="0" width="900" height="320" rx="12" fill="url(#sea)" />
+                    
+                    <div class="map-container" style="margin-top: 20px; position: relative; border-radius: 16px; overflow: hidden; border: 1px solid var(--border);">
+                        <div id="addMarkerInfo" style="display: none; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(0,0,0,0.8); color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                            <i class="fas fa-map-pin"></i> Klik di peta untuk menandai lokasi
+                        </div>
+                        <div id="leafletMap" style="height: 450px; width: 100%; z-index: 1;"></div>
+                    </div>
 
-                            <path d="M70,190 C95,165 140,150 180,155 C220,160 245,145 270,140 C300,133 318,147 350,160 C385,175 410,170 440,156 C465,145 500,142 535,150 C565,156 590,152 620,145 C650,138 680,140 710,150 C740,160 770,160 810,145 C840,132 860,130 880,138"
-                                  fill="none" stroke="#BBD2FF" stroke-width="14" stroke-linecap="round" opacity="0.7" />
-
-                            <path d="M90,205 C120,180 155,170 190,175 C225,180 260,168 290,160 C320,152 335,162 360,178 C390,196 420,192 450,176 C480,160 520,158 555,168 C585,178 610,176 640,168 C670,160 705,164 735,176 C765,188 800,188 835,170 C860,158 875,156 890,162"
-                                  fill="none" stroke="#DCE9FF" stroke-width="10" stroke-linecap="round" opacity="0.9" />
-
-                            <g fill="url(#land)" opacity="0.95">
-                                <path d="M85,170 C120,145 165,135 205,140 C245,145 270,130 298,124 C325,118 348,125 370,138 C392,150 420,148 442,138 C468,126 505,126 535,134 C565,141 590,140 620,134 C652,126 682,128 708,136 C738,145 768,145 804,130 C832,118 850,116 872,124 C848,150 805,166 770,170 C735,175 700,170 665,164 C630,158 598,162 565,168 C532,174 498,172 470,164 C442,156 410,160 382,168 C352,176 330,172 308,164 C280,154 250,160 222,166 C195,172 150,180 120,190 C105,195 92,195 85,190 Z" />
-                                <path d="M445,215 C468,202 498,200 525,206 C550,212 570,210 595,204 C620,198 642,198 664,206 C686,214 710,214 730,206 C705,236 665,252 620,256 C575,260 520,252 470,236 C455,231 445,224 445,215 Z" />
-                                <path d="M730,120 C748,108 774,104 798,108 C820,112 842,112 862,106 C842,132 812,148 780,152 C760,154 740,150 730,140 Z" />
-                            </g>
-
-                            <g fill="#1F3C73" opacity="0.8">
-                                <circle cx="210" cy="150" r="6" />
-                                <circle cx="370" cy="145" r="6" />
-                                <circle cx="535" cy="138" r="6" />
-                                <circle cx="705" cy="142" r="6" />
-                                <circle cx="620" cy="230" r="6" />
-                                <circle cx="805" cy="122" r="6" />
-                            </g>
-                        </svg>
+                    <div id="timelineEvents" style="margin-top: 24px;">
+                        <div class="card-meta">Pilih wilayah di atas</div>
+                        <div id="eventsList" class="events-grid" style="margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px;">
+                            <!-- Events will be loaded here -->
+                            <div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 40px; background: #f9f9f9; border-radius: 12px; border: 2px dashed #eee;">
+                                <i class="fas fa-map-location-dot" style="font-size: 40px; color: #ccc; margin-bottom: 15px; display: block;"></i>
+                                <p style="color: #888;">Klik pada salah satu pulau di peta untuk melihat linimasa sejarahnya.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -165,9 +153,9 @@
                 <i class="fas fa-home"></i>
                 <span>Beranda</span>
             </a>
-            <a href="timeline.html" class="mobile-nav-item active">
-                <i class="fas fa-stream"></i>
-                <span>Timeline</span>
+            <a href="quizzes.html" class="mobile-nav-item">
+                <i class="fas fa-circle-question"></i>
+                <span>Kuis</span>
             </a>
             <a href="materi.html" class="mobile-nav-item">
                 <i class="fas fa-book"></i>
@@ -179,6 +167,59 @@
             </a>
         </div>
     </nav>
+
+    <!-- Contribution Modal -->
+    <div id="contributionModal" class="modal-overlay" style="display: none; z-index: 10000;">
+        <div class="modal-content fade-in-up" style="max-width: 500px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-map-pin" style="color: var(--primary);"></i> Tambah Lokasi
+                </h3>
+                <button id="btnCloseContrib" style="background: none; border: none; font-size: 20px; cursor: pointer;">&times;</button>
+            </div>
+            
+            <form id="contribForm" style="display: grid; gap: 14px;">
+                <input type="hidden" id="markerLat">
+                <input type="hidden" id="markerLng">
+
+                <div>
+                    <label style="font-size: 13px; font-weight: 600; color: var(--text-light);">Nama Peristiwa / Lokasi</label>
+                    <input type="text" id="contribTitle" class="form-input" placeholder="Contoh: Benteng Vredeburg" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 4px;">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; color: var(--text-light);">Tahun</label>
+                        <input type="text" id="contribYear" class="form-input" placeholder="1945" required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 4px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 13px; font-weight: 600; color: var(--text-light);">Kategori</label>
+                        <select id="contribCategory" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 4px; background: white;">
+                            <option value="Perang">Perang</option>
+                            <option value="Kerajaan">Kerajaan</option>
+                            <option value="Bangunan">Bangunan</option>
+                            <option value="Peristiwa">Peristiwa</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label style="font-size: 13px; font-weight: 600; color: var(--text-light);">Deskripsi Singkat</label>
+                    <textarea id="contribDesc" rows="3" placeholder="Jelaskan peristiwa sejarah di sini..." required style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; margin-top: 4px; font-family: inherit;"></textarea>
+                </div>
+
+                <div style="background: #f0f7ff; padding: 12px; border-radius: 8px; border: 1px dashed #007bff;">
+                    <label style="font-size: 13px; font-weight: 600; color: #0056b3;">Sumber Referensi (Wajib)</label>
+                    <input type="url" id="contribSource" class="form-input" placeholder="https://wikipedia.org/..." required style="width: 100%; padding: 10px; border: 1px solid #cce5ff; border-radius: 8px; margin-top: 4px;">
+                    <p style="font-size: 11px; color: #666; margin-top: 4px;">*Link berita, buku, atau jurnal valid untuk verifikasi.</p>
+                </div>
+
+                <div style="margin-top: 10px;">
+                    <button type="submit" class="btn-primary" style="width: 100%;">Kirim untuk Moderasi</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <script src="assets/js/app.js"></script>
 </body>

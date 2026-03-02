@@ -1,0 +1,11 @@
+node_modules/
+backend/node_modules/
+*.log
+npm-debug.log*
+.DS_Store
+
+.env
+backend/.env
+backend/.vnv
+
+.trae/

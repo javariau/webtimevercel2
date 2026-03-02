@@ -1,7 +1,5 @@
-const SUPABASE_URL = 'https://vbxwnuahsljkvpfrkfcd.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZieHdudWFoc2xqa3ZwZnJrZmNkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE3MzU3ODYsImV4cCI6MjA3NzMxMTc4Nn0.HYsRLQT_WlItxiMK_Z7ZGDIMkEHA2n3bX1jtJJHtmFI';
-
 let supabaseClient = null;
+let supabasePublicConfig = null;
 
 function loadSupabaseSdk() {
     return new Promise((resolve, reject) => {
@@ -13,15 +11,39 @@ function loadSupabaseSdk() {
         const script = document.createElement('script');
         script.src = 'https://unpkg.com/@supabase/supabase-js@2';
         script.onload = () => resolve();
-        script.onerror = () => reject(new Error('Failed to load Supabase SDK'));
+        script.onerror = () => reject(new Error('Gagal memuat Supabase SDK. Pastikan internet aktif.'));
         document.head.appendChild(script);
     });
+}
+
+async function getSupabasePublicConfig() {
+    if (supabasePublicConfig) return supabasePublicConfig;
+
+    try {
+        const res = await fetch('/api/supabase-public-config', { cache: 'no-store' });
+        if (!res.ok) {
+            const message = await res.text();
+            throw new Error(message || `HTTP ${res.status}`);
+        }
+        const cfg = await res.json();
+        if (!cfg || !cfg.url || !cfg.anonKey) {
+            throw new Error('Config Supabase tidak lengkap.');
+        }
+        supabasePublicConfig = { url: String(cfg.url), anonKey: String(cfg.anonKey) };
+        return supabasePublicConfig;
+    } catch (e) {
+        const msg = 'Konfigurasi Supabase belum siap. Isi SUPABASE_URL & SUPABASE_ANON_KEY di backend/.env lalu jalankan server.';
+        console.error(msg, e);
+        alert(msg);
+        throw new Error(msg);
+    }
 }
 
 async function getSupabaseClient() {
     if (supabaseClient) return supabaseClient;
     await loadSupabaseSdk();
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const cfg = await getSupabasePublicConfig();
+    supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
     return supabaseClient;
 }
 

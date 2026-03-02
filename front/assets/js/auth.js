@@ -93,6 +93,7 @@ async function handleForgotPasswordSubmit(forgotForm) {
     }
 
     const sb = await getSupabaseClient();
+    // Gunakan relative path agar dinamis, tidak hardcoded ke domain tertentu
     const redirectTo = `${window.location.origin}/reset-password.html`;
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
     if (error) {
@@ -159,17 +160,26 @@ async function ensureRecoverySessionFromUrl() {
 }
 
 async function handleRegisterSubmit(registerForm) {
-    const fullNameInput = registerForm.querySelector('input[type="text"]');
+    const fullNameInput = registerForm.querySelector('input[type="text"]:not([name="username"])');
     const usernameInput = registerForm.querySelector('input[name="username"]');
     const emailInput = registerForm.querySelector('input[type="email"]');
     const mobileInput = registerForm.querySelector('input[type="tel"]');
-    const passwordInputs = registerForm.querySelectorAll('input[type="password"]');
+    const genderInput = registerForm.querySelector('input[name="gender"]:checked');
+    const passwordInput = registerForm.querySelector('#registerPassword');
+    const confirmPasswordInput = registerForm.querySelector('#registerPasswordConfirm');
+    
     const email = emailInput ? String(emailInput.value || '').trim().toLowerCase() : '';
     const fullName = fullNameInput ? String(fullNameInput.value || '').trim() : '';
     const username = usernameInput ? String(usernameInput.value || '').trim() : '';
     const mobileNo = mobileInput ? String(mobileInput.value || '').trim() : '';
-    const password = passwordInputs && passwordInputs[0] ? String(passwordInputs[0].value || '').trim() : '';
-    const confirmPassword = passwordInputs && passwordInputs[1] ? String(passwordInputs[1].value || '').trim() : '';
+    const gender = genderInput ? String(genderInput.value || '').trim() : '';
+    const password = passwordInput ? String(passwordInput.value || '').trim() : '';
+    const confirmPassword = confirmPasswordInput ? String(confirmPasswordInput.value || '').trim() : '';
+
+    if (!password || password.length < 8) {
+        alert('Password minimal 8 karakter.');
+        return;
+    }
 
     if (password !== confirmPassword) {
         alert('Konfirmasi password tidak sama.');
@@ -177,7 +187,7 @@ async function handleRegisterSubmit(registerForm) {
     }
 
     const sb = await getSupabaseClient();
-    const { data, error } = await sb.auth.signUp({
+    const { data: { user }, error } = await sb.auth.signUp({
         email,
         password,
         options: {
@@ -185,15 +195,22 @@ async function handleRegisterSubmit(registerForm) {
                 full_name: fullName,
                 username,
                 mobile_no: mobileNo,
+                gender,
             },
         },
     });
+
     if (error) {
-        alert(error.message);
+        alert('Gagal daftar: ' + error.message);
         return;
     }
 
-    alert('Pendaftaran berhasil. Silakan login.');
+    if (user && user.identities && user.identities.length === 0) {
+        alert('Email ini sudah terdaftar. Silakan gunakan email lain atau login.');
+        return;
+    }
+
+    alert('Pendaftaran berhasil. Silakan cek email kamu untuk konfirmasi (jika diperlukan) atau langsung login.');
     window.location.href = 'login.html';
 }
 

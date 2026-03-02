@@ -2,15 +2,17 @@ const path = require('path');
 const fs = require('fs');
 
 const envPathEnv = path.resolve(__dirname, '.env');
+const envPathRootEnv = path.resolve(__dirname, '..', '.env');
 const envPathVnv = path.resolve(__dirname, '.vnv');
-require('dotenv').config({ path: fs.existsSync(envPathEnv) ? envPathEnv : envPathVnv });
+const envPath = fs.existsSync(envPathEnv) ? envPathEnv : (fs.existsSync(envPathRootEnv) ? envPathRootEnv : envPathVnv);
+require('dotenv').config({ path: envPath });
 const express = require('express');
 
 const app = express();
-const PORT = process.env.PORT || 7979;
-const SUPABASE_URL = process.env.SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || '';
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+const PORT = process.env.PORT || 9090;
+const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim();
+const SUPABASE_ANON_KEY = String(process.env.SUPABASE_ANON_KEY || '').trim();
+const SUPABASE_SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 const SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY;
 
 const frontDir = path.resolve(__dirname, '..', 'front');
@@ -22,6 +24,15 @@ app.use(express.static(frontDir, { index: false }));
 function hasSupabaseConfig() {
   return Boolean(SUPABASE_URL && SUPABASE_KEY);
 }
+
+app.get('/api/supabase-public-config', (_req, res) => {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    return res.status(500).json({ error: 'SUPABASE_URL dan SUPABASE_ANON_KEY belum diset di backend/.env' });
+  }
+
+  res.setHeader('Cache-Control', 'no-store');
+  return res.json({ url: SUPABASE_URL, anonKey: SUPABASE_ANON_KEY });
+});
 
 async function supabaseRestRequest(resourcePath) {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${resourcePath}`, {

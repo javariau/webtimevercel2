@@ -6,6 +6,7 @@
     <title>TimeTrack - Belajar Sejarah Indonesia</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>body{display:none;}</style>
 </head>
 <body>
     <!-- MAIN APPLICATION -->
@@ -82,14 +83,22 @@
             </nav>
             
             <div class="sidebar-footer">
-                <a class="user-profile" href="profile.html" style="text-decoration: none; color: inherit;">
-                    <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
-                    <div class="user-info">
-                        <div class="user-name">Ahmad Fauzi</div>
-                        <div class="user-role">Pelajar Aktif</div>
+                <div class="profile-container" style="position:relative;">
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="profile-edit.html" class="dropdown-item"><i class="fas fa-user-pen"></i> Edit Profil</a>
+                        <a href="login.html" class="dropdown-item"><i class="fas fa-right-from-bracket"></i> Ganti Akun</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" onclick="handleLogout(event)" class="dropdown-item" style="color:#e53935;"><i class="fas fa-power-off"></i> Logout</a>
                     </div>
-                    <i class="fas fa-chevron-right" style="color: var(--text-light); font-size: 12px;"></i>
-                </a>
+                    <div class="user-profile" onclick="toggleProfileMenu(event)">
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
+                        <div class="user-info">
+                            <div class="user-name">...</div>
+                            <div class="user-role">Pelajar Aktif</div>
+                        </div>
+                        <i class="fas fa-chevron-up" style="color: var(--text-light); font-size: 12px;"></i>
+                    </div>
+                </div>
             </div>
         </aside>
 
@@ -128,8 +137,8 @@
                 <div id="dashboardPage" class="main-page tt-hydrate-hidden">
                     <div class="hero-section fade-in">
                         <div class="hero-content">
-                            <h1>Selamat Datang, Ahmad! 👋</h1>
-                            <p>Lanjutkan perjalanan belajar sejarahmu. Kamu telah menyelesaikan 12 materi minggu ini. Pertahankan semangat!</p>
+                            <h1 id="welcomeUserHeader">Selamat Datang! 👋</h1>
+                            <p>Lanjutkan perjalanan belajar sejarahmu.</p>
                             
                             <div class="hero-stats">
                                 <div class="stat-item">
