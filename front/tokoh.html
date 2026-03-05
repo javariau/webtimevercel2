@@ -25,20 +25,44 @@
                         <i class="fas fa-home"></i>
                         <span>Beranda</span>
                     </a>
+                    <a href="materi.html" class="nav-item">
+                        <i class="fas fa-book"></i>
+                        <span>Materi Pembelajaran</span>
+                    </a>
+                    <a href="quizzes.html" class="nav-item">
+                        <i class="fas fa-circle-question"></i>
+                        <span>Kuis</span>
+                    </a>
+                    <a href="community.html" class="nav-item">
+                        <i class="fas fa-comments"></i>
+                        <span>Komunitas</span>
+                    </a>
+                    <a href="tasks.html" class="nav-item">
+                        <i class="fas fa-list-check"></i>
+                        <span>Tugas</span>
+                    </a>
+                    <a href="premium.html" class="nav-item">
+                        <i class="fas fa-crown"></i>
+                        <span>Premium</span>
+                    </a>
+                    <a href="shop.html" class="nav-item">
+                        <i class="fas fa-store"></i>
+                        <span>Toko</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Eksplorasi</div>
                     <a href="timeline.html" class="nav-item">
                         <i class="fas fa-stream"></i>
                         <span>Timeline Sejarah</span>
                     </a>
                     <a href="tokoh.html" class="nav-item active">
                         <i class="fas fa-users"></i>
-                        <span>Tokoh & Kisah</span>
-                    </a>
-                    <a href="materi.html" class="nav-item">
-                        <i class="fas fa-book"></i>
-                        <span>Materi Pembelajaran</span>
+                        <span>Tokoh &amp; Kisah</span>
                     </a>
                 </div>
-
+                
                 <div class="nav-section">
                     <div class="nav-section-title">Lainnya</div>
                     <a href="notification.html" class="nav-item">
@@ -55,16 +79,24 @@
                     </a>
                 </div>
             </nav>
-
+            
             <div class="sidebar-footer">
-                <a class="user-profile" href="profile.html" style="text-decoration: none; color: inherit;">
-                    <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
-                    <div class="user-info">
-                        <div class="user-name">...</div>
-                        <div class="user-role">Pelajar Aktif</div>
+                <div class="profile-container" style="position:relative;">
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="profile-edit.html" class="dropdown-item"><i class="fas fa-user-pen"></i> Edit Profil</a>
+                        <a href="login.html" class="dropdown-item"><i class="fas fa-right-from-bracket"></i> Ganti Akun</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" onclick="handleLogout(event)" class="dropdown-item" style="color:#e53935;"><i class="fas fa-power-off"></i> Logout</a>
                     </div>
-                    <i class="fas fa-chevron-right" style="color: var(--text-light); font-size: 12px;"></i>
-                </a>
+                    <div class="user-profile" onclick="toggleProfileMenu(event)">
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
+                        <div class="user-info">
+                            <div class="user-name">...</div>
+                            <div class="user-role">Pelajar Aktif</div>
+                        </div>
+                        <i class="fas fa-chevron-up" style="color: var(--text-light); font-size: 12px;"></i>
+                    </div>
+                </div>
             </div>
         </aside>
 

@@ -96,7 +96,12 @@ async function initMateriPage_DISABLED() {
                 // Override: Materi tidak dikunci (sesuai permintaan user)
                 const isLocked = false; 
                 
-                return `
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.onclick = () => window.location.href = `materi-detail.html?id=${m.id}`;
+                card.style.cursor = 'pointer';
+
+                card.innerHTML = `
                 <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
                     <div class="card-image-wrapper" style="width: 100%; height: 180px; position: relative;">
                         <img src="${escapeHtml(m.image_url || 'assets/img/placeholder.jpg')}" alt="${escapeHtml(m.title)}" style="width: 100%; height: 100%; object-fit: cover;">
@@ -104,15 +109,16 @@ async function initMateriPage_DISABLED() {
                         ${isLocked ? `<div style="position:absolute; inset:0; background:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:10;"><i class="fas fa-lock" style="color:white; font-size:32px;"></i></div>` : ''}
                     </div>
                     <div class="card-content" style="flex: 1; display: flex; flex-direction: column; padding: 16px;">
-                        <div class="card-meta">${escapeHtml(categoryName)}</div>
-                        <h3 class="card-title" style="margin: 8px 0; font-size: 18px; line-height: 1.4;">${escapeHtml(m.title)}</h3>
-                        <p class="card-text" style="margin-bottom: 16px; flex: 1;">${escapeHtml(m.description || '')}</p>
+                        <div class="card-meta" style="display:none;">${escapeHtml(categoryName)}</div>
+                        <h3 class="card-title" style="margin: 8px 0; font-size: 16px; line-height: 1.4;">${escapeHtml(m.title)}</h3>
+                        <p class="card-text" style="margin-bottom: 8px; flex: 1; font-size: 13px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(m.description || '')}</p>
                         ${isLocked 
                             ? `<button class="btn-secondary" style="width: 100%; opacity: 0.7; cursor: not-allowed;" onclick="alert('Materi ini khusus Premium. Silakan upgrade akun Anda.'); window.location.href='premium.html';">Terkunci (Premium)</button>`
-                            : `<a href="materi-detail.html?id=${m.id}" class="btn-primary" style="width: 100%; text-align: center; text-decoration: none; display: inline-block;">Baca Materi</a>`
+                            : `<span class="card-read-more" style="font-size: 12px; font-weight: 700; color: #d4af37; margin-top: auto;">Baca Selengkapnya <i class="fas fa-arrow-right"></i></span>`
                         }
                     </div>
                 </div>`;
+
             }).join('');
         }
 
@@ -319,85 +325,88 @@ async function initTimelinePage() {
         }
 
         const regionEvents = {
+            'Jakarta & Jawa Barat': {
+                coords: [-6.2088, 106.8456],
+                events: [
+                    { title: 'Proklamasi Kemerdekaan', year: '1945', desc: 'Pembacaan teks Proklamasi oleh Soekarno-Hatta di Jl. Pegangsaan Timur 56.', lat: -6.2023, lng: 106.8488, type: 'Peristiwa', icon: 'flag' },
+                    { title: 'Monumen Nasional (Monas)', year: '1961', desc: 'Dibangun untuk mengenang perjuangan rakyat Indonesia merebut kemerdekaan.', lat: -6.1754, lng: 106.8272, type: 'Bangunan', icon: 'monument' },
+                    { title: 'Museum Sumpah Pemuda', year: '1928', desc: 'Tempat Kongres Pemuda II yang melahirkan ikrar Sumpah Pemuda.', lat: -6.1836, lng: 106.8443, type: 'Peristiwa', icon: 'users' },
+                    { title: 'Peristiwa Rengasdengklok', year: '1945', desc: 'Penculikan Soekarno-Hatta oleh golongan muda untuk mendesak proklamasi.', lat: -6.1578, lng: 107.2947, type: 'Peristiwa', icon: 'history' }
+                ]
+            },
+            'Jawa Tengah & DIY': {
+                coords: [-7.1500, 110.1403],
+                events: [
+                    { title: 'Candi Borobudur', year: '800 M', desc: 'Candi Buddha terbesar di dunia, warisan Dinasti Syailendra.', lat: -7.6079, lng: 110.2038, type: 'Bangunan', icon: 'vihara' },
+                    { title: 'Candi Prambanan', year: '850 M', desc: 'Kompleks candi Hindu terbesar di Indonesia, didedikasikan untuk Trimurti.', lat: -7.7520, lng: 110.4915, type: 'Bangunan', icon: 'gopuram' },
+                    { title: 'Lawang Sewu', year: '1945', desc: 'Saksi bisu Pertempuran Lima Hari di Semarang melawan Jepang.', lat: -6.9840, lng: 110.4106, type: 'Peristiwa', icon: 'building' },
+                    { title: 'Benteng Vredeburg', year: '1760', desc: 'Benteng Belanda untuk mengawasi Keraton Yogyakarta, kini museum perjuangan.', lat: -7.8003, lng: 110.3661, type: 'Bangunan', icon: 'chess-rook' }
+                ]
+            },
             'Sumatera': {
                 coords: [-0.5897, 101.3431],
                 events: [
-                    { year: '1821-1837', title: 'Perang Padri', desc: 'Perang di Sumatera Barat antara kaum Padri dan kaum Adat, kemudian melawan Belanda.' },
-                    { year: '1873-1904', title: 'Perang Aceh', desc: 'Perlawanan sengit rakyat Aceh melawan kolonial Belanda.' },
-                    { year: '1945', title: 'Pertempuran Medan Area', desc: 'Aksi perlawanan rakyat Medan melawan tentara Sekutu dan NICA.' }
-                ]
-            },
-            'Jawa': {
-                coords: [-7.6145, 110.7122],
-                events: [
-                    { year: '1293', title: 'Berdirinya Majapahit', desc: 'Raden Wijaya mendirikan kerajaan Majapahit setelah mengalahkan tentara Mongol.' },
-                    { year: '1825-1830', title: 'Perang Diponegoro', desc: 'Perlawanan Pangeran Diponegoro melawan Belanda.' },
-                    { year: '1945', title: 'Resolusi Jihad', desc: 'Fatwa KH Hasyim Asy\'ari yang memicu Pertempuran 10 November.' }
-                ]
-            },
-            'Kalimantan': {
-                coords: [-0.0001, 113.9213],
-                events: [
-                    { year: '1859-1905', title: 'Perang Banjar', desc: 'Perlawanan Pangeran Antasari melawan Belanda di Kesultanan Banjar.' },
-                    { year: '1947', title: 'Pertempuran Sangasanga', desc: 'Aksi pejuang Kalimantan Timur mengusir penjajah Belanda.' }
-                ]
-            },
-            'Sulawesi': {
-                coords: [-1.9032, 120.8210],
-                events: [
-                    { year: '1666-1669', title: 'Perang Makassar', desc: 'Sultan Hasanuddin melawan monopoli perdagangan VOC.' },
-                    { year: '1946', title: 'Peristiwa Korban 40.000 Jiwa', desc: 'Pembantaian rakyat Sulawesi Selatan oleh pasukan Westerling.' }
-                ]
-            },
-            'Papua': {
-                coords: [-4.2699, 138.0803],
-                events: [
-                    { year: '1961', title: 'Trikora', desc: 'Komando Rakyat untuk membebaskan Irian Barat.' },
-                    { year: '1969', title: 'Pepera', desc: 'Penentuan Pendapat Rakyat yang menyatakan Papua resmi bagian dari NKRI.' }
-                ]
-            },
-            'Bali & Nusa Tenggara': {
-                coords: [-8.3405, 115.0920],
-                events: [
-                    { year: '1846-1849', title: 'Perang Jagaraga', desc: 'Perlawanan rakyat Bali melawan invasi Belanda.' },
-                    { year: '1946', title: 'Puputan Margarana', desc: 'Pertempuran habis-habisan I Gusti Ngurah Rai.' }
-                ]
-            },
-            'Maluku': {
-                coords: [-3.2384, 130.1453],
-                events: [
-                    { year: '1817', title: 'Perlawanan Pattimura', desc: 'Thomas Matulessy memimpin rakyat Maluku merebut Benteng Duurstede.' },
-                    { year: '1521', title: 'Ekspedisi Magellan', desc: 'Kedatangan bangsa Spanyol pertama kali di Maluku.' }
+                    { title: 'Kerajaan Sriwijaya', year: '650 M', desc: 'Pusat kemaritiman dan penyebaran agama Buddha di Palembang.', lat: -2.9909, lng: 104.7567, type: 'Kerajaan', icon: 'ship' },
+                    { title: 'Benteng Fort de Kock', year: '1825', desc: 'Benteng pertahanan Belanda saat Perang Padri di Bukittinggi.', lat: -0.3056, lng: 100.3692, type: 'Bangunan', icon: 'chess-rook' }
                 ]
             }
         };
 
-        Object.keys(regionEvents).forEach(regionName => {
-            const region = regionEvents[regionName];
-            const marker = L.marker(region.coords).addTo(map);
+        // Render Events
+        Object.keys(regionEvents).forEach(region => {
+            const data = regionEvents[region];
             
-            marker.bindTooltip(regionName);
+            data.events.forEach(ev => {
+                // Marker
+                let iconColor = '#3b82f6';
+                if (ev.type === 'Perang') iconColor = '#ef4444';
+                if (ev.type === 'Kerajaan') iconColor = '#f59e0b';
+                if (ev.type === 'Bangunan') iconColor = '#10b981';
 
-            marker.on('click', () => {
-                const events = region.events;
-                if (timelineHeader) timelineHeader.textContent = `Linimasa: ${regionName}`;
+                const icon = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color:${iconColor}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+                    iconSize: [12, 12],
+                    iconAnchor: [6, 6]
+                });
+
+                L.marker([ev.lat, ev.lng], { icon: icon })
+                    .addTo(map)
+                    .bindPopup(`
+                        <div style="min-width: 200px;">
+                            <h4 style="margin:0 0 5px 0; color:var(--primary);">${escapeHtml(ev.title)}</h4>
+                            <div style="font-size:12px; color:#666; margin-bottom:5px;">
+                                <i class="fas fa-calendar"></i> ${escapeHtml(ev.year)} &bull; ${escapeHtml(ev.type)}
+                            </div>
+                            <p style="margin:0; font-size:13px;">${escapeHtml(ev.desc)}</p>
+                        </div>
+                    `);
+
+                // List Item
+                const item = document.createElement('div');
+                item.className = 'timeline-item';
+                item.style.cssText = 'padding: 12px; border-bottom: 1px solid var(--border); cursor: pointer; transition: background 0.2s;';
+                item.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <h4 style="margin:0; font-size:14px; color:var(--text);">${escapeHtml(ev.title)}</h4>
+                        <span style="font-size:11px; background:${iconColor}20; color:${iconColor}; padding:2px 6px; border-radius:4px;">${escapeHtml(ev.year)}</span>
+                    </div>
+                    <p style="margin:4px 0 0 0; font-size:12px; color:var(--text-light); line-clamp: 2; -webkit-line-clamp: 2; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical;">${escapeHtml(ev.desc)}</p>
+                `;
                 
-                if (events.length > 0) {
-                    eventsList.innerHTML = events.map(ev => `
-                        <div class="event-card fade-in">
-                            <span class="event-year">${escapeHtml(ev.year)}</span>
-                            <h4 class="event-title">${escapeHtml(ev.title)}</h4>
-                            <p class="event-desc">${escapeHtml(ev.desc)}</p>
-                        </div>
-                    `).join('');
-                } else {
-                    eventsList.innerHTML = `
-                        <div class="empty-state" style="grid-column: 1/-1;">
-                            <p style="color: #888;">Belum ada data peristiwa untuk wilayah ini.</p>
-                        </div>
-                    `;
-                }
-                eventsList.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                item.onmouseover = () => item.style.background = 'var(--bg-light)';
+                item.onmouseout = () => item.style.background = 'transparent';
+                item.onclick = () => {
+                    map.flyTo([ev.lat, ev.lng], 12);
+                    // Open popup manually
+                    map.eachLayer(layer => {
+                        if (layer instanceof L.Marker && layer.getLatLng().equals([ev.lat, ev.lng])) {
+                            layer.openPopup();
+                        }
+                    });
+                };
+
+                eventsList.appendChild(item);
             });
         });
 
@@ -935,6 +944,13 @@ async function initQuizDetailPage() {
 
             // Simpan ke database (background process)
             try {
+                // Track Daily Task: Quiz / Game
+                if (typeof window.trackDailyTask === 'function') {
+                    // Gunakan 'play_game' karena keyword mapping akan mencocokkan 'kuis' atau 'game'
+                    console.log('Tracking Quiz Task...');
+                    window.trackDailyTask('play_game', 1);
+                }
+
                 const { data: { user } } = await sb.auth.getUser();
                 if (user) {
                     await sb.from('quiz_attempts').upsert({
@@ -1105,6 +1121,12 @@ async function initContentDetailTracking() {
             user_id: user.id,
             materi_id: materiId,
         });
+
+        // Track Daily Task: Read Material
+        if (typeof window.trackDailyTask === 'function') {
+            window.trackDailyTask('read_material', 1);
+        }
+
     } catch (e) {
         // ignore
     }
@@ -1456,17 +1478,40 @@ async function initPremiumPaymentPage() {
         const root = document.getElementById('premiumPaymentRoot');
         if (!root) return;
 
+        const sb = await getSupabaseClient();
+        const { user, profile } = await loadCurrentProfile();
+        if (profile) updateCommonUserUI(profile);
+
         const params = new URLSearchParams(window.location.search || '');
-        const packageIdRaw = params.get('package_id');
-        const packageId = packageIdRaw ? Number(packageIdRaw) : NaN;
+        let packageIdRaw = params.get('package_id');
+        let packageId = packageIdRaw ? Number(packageIdRaw) : NaN;
+        
+        // Handle "plan=monthly" or "plan=yearly" if package_id is missing
+        if (!Number.isFinite(packageId)) {
+            const plan = String(params.get('plan') || '').toLowerCase();
+            if (plan) {
+                // Try to find package by name/duration
+                let query = sb.from('premium_packages').select('id, title, duration_days').limit(10);
+                
+                if (plan === 'monthly') {
+                    // Find ~30 days or title contains 'Bulanan'
+                    // We'll fetch all and filter in JS to be safe, or just pick the one with duration ~30
+                    const { data: packs } = await query;
+                    const found = (packs || []).find(p => p.duration_days >= 28 && p.duration_days <= 31);
+                    if (found) packageId = found.id;
+                } else if (plan === 'yearly') {
+                    // Find ~365 days
+                    const { data: packs } = await query;
+                    const found = (packs || []).find(p => p.duration_days >= 360);
+                    if (found) packageId = found.id;
+                }
+            }
+        }
+
         if (!Number.isFinite(packageId)) {
             root.innerHTML = `<div class="card-meta">Error</div><h3 class="card-title" style="margin-top: 6px;">Paket tidak valid</h3><p class="card-text">Buka halaman Premium dan pilih paket.</p>`;
             return;
         }
-
-        const sb = await getSupabaseClient();
-        const { user, profile } = await loadCurrentProfile();
-        if (profile) updateCommonUserUI(profile);
 
         const { data: pack, error } = await sb
             .from('premium_packages')
@@ -1772,11 +1817,67 @@ function updateCommonUserUI(profile) {
     if (profileNameLarge) profileNameLarge.textContent = name;
 }
 
+async function syncUserStats(sb, userId) {
+    try {
+        // 1. Hitung Materi Selesai
+        const { data: reads, error: readErr } = await sb
+            .from('daily_materi_reads')
+            .select('materi_id')
+            .eq('user_id', userId);
+        
+        let materiSelesai = 0;
+        if (!readErr && reads) {
+            const unique = new Set(reads.map(r => r.materi_id).filter(id => id != null));
+            materiSelesai = unique.size;
+        }
+
+        // 2. Hitung Quiz Stats (Badges & XP dari Quiz)
+        const { data: attempts, error: quizErr } = await sb
+            .from('quiz_attempts')
+            .select('score, points_earned')
+            .eq('user_id', userId);
+
+        let totalScore = 0;
+        let quizXP = 0;
+
+        if (!quizErr && attempts) {
+            attempts.forEach(a => {
+                totalScore += (a.score || 0);
+                quizXP += (a.points_earned || 0);
+            });
+        }
+
+        // Logika Badge: 1 Badge setiap 2 jawaban benar (akumulatif)
+        const badgeCount = Math.floor(totalScore / 2);
+
+        // 3. Hitung Total XP
+        // XP = (Materi * 10) + (Quiz XP) + (Badge Bonus * 20)
+        // Opsional: Tambahkan bonus badge agar XP tidak 0
+        const readXP = materiSelesai * 10;
+        const badgeBonusXP = badgeCount * 20; 
+        const totalXP = readXP + quizXP + badgeBonusXP;
+
+        // 4. Update Profile di Database agar sinkron
+        await sb.from('profiles').update({
+            materials_read_count: materiSelesai,
+            badges: badgeCount,
+            xp: totalXP
+        }).eq('id', userId);
+
+        return { materiSelesai, badgeCount, xp: totalXP };
+    } catch (e) {
+        console.error('Sync stats error:', e);
+        return { materiSelesai: 0, badgeCount: 0, xp: 0 };
+    }
+}
+
 async function initDashboardPage() {
     const dashboardPage = document.getElementById('dashboardPage');
     const heroTitle = document.querySelector('.hero-section .hero-content h1');
     const heroStats = document.querySelectorAll('.hero-section .hero-stats .stat-value');
     const continueCardsGrid = document.querySelector('#dashboardPage .cards-grid');
+    
+    // Check if we are on dashboard page (or index.html with dashboard elements)
     if (!heroTitle && !continueCardsGrid) return;
 
     try {
@@ -1789,54 +1890,14 @@ async function initDashboardPage() {
             heroTitle.textContent = `Selamat Datang, ${displayName}! 👋`;
         }
 
-        let materiSelesai = 0;
-        let badgeCount = 0;
-        let exp = 0;
+        let stats = { materiSelesai: 0, badgeCount: 0, xp: 0 };
         let lastReadMateri = [];
 
         if (user) {
-            const { data: readsForCount, error: readsCountErr } = await sb
-                .from('daily_materi_reads')
-                .select('materi_id, read_at')
-                .eq('user_id', user.id)
-                .order('read_at', { ascending: false })
-                .limit(1000);
+            // SINKRONISASI DATA STATS
+            stats = await syncUserStats(sb, user.id);
 
-            if (!readsCountErr) {
-                const unique = new Set();
-                (Array.isArray(readsForCount) ? readsForCount : []).forEach((r) => {
-                    if (r && r.materi_id != null) unique.add(r.materi_id);
-                });
-                materiSelesai = unique.size;
-            }
-
-            const { count: quizCount } = await sb
-                .from('quiz_attempts')
-                .select('id', { count: 'exact', head: true })
-                .eq('user_id', user.id);
-            badgeCount = quizCount || 0;
-
-            const { data: attemptsForBadges, error: attemptsErr } = await sb
-                .from('quiz_attempts')
-                .select('score')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false })
-                .limit(1000);
-
-            if (!attemptsErr) {
-                const totalCorrect = (Array.isArray(attemptsForBadges) ? attemptsForBadges : []).reduce((sum, r) => {
-                    const v = r && typeof r.score === 'number' ? r.score : 0;
-                    return sum + v;
-                }, 0);
-                badgeCount = totalCorrect / 2;
-                exp = Math.floor(badgeCount / 25) * 20;
-            } else {
-                exp = 0;
-                if (typeof console !== 'undefined' && console && typeof console.warn === 'function') {
-                    console.warn('Tidak bisa membaca quiz_attempts.score (kemungkinan RLS). Badge ditampilkan sebagai jumlah attempt (fallback).', attemptsErr);
-                }
-            }
-
+            // Load Last Read
             const { data: reads, error: readsErr } = await sb
                 .from('daily_materi_reads')
                 .select('read_at, materi:materi_id (id, title, summary, image_url, created_at)')
@@ -1854,11 +1915,13 @@ async function initDashboardPage() {
             }
         }
 
+        // Update Dashboard Stats UI
         if (heroStats && heroStats.length >= 3) {
-            heroStats[0].textContent = String(materiSelesai);
-            heroStats[1].textContent = String(badgeCount);
-            heroStats[2].textContent = String(exp);
+            heroStats[0].textContent = String(stats.materiSelesai);
+            heroStats[1].textContent = String(stats.badgeCount);
+            heroStats[2].textContent = String(stats.xp);
         }
+
 
         if (continueCardsGrid) {
             if (!user) return;
@@ -2071,40 +2134,25 @@ async function initProfilePage() {
         if (profile) updateCommonUserUI(profile);
         if (!user || !profile) return;
 
-    // Load Data
-    let materiSelesai = 0;
-    let badgeCount = 0;
-    let exp = 0;
+        // Force Sync Stats agar data selalu terbaru
+        const stats = await syncUserStats(sb, user.id);
 
-    // Ambil data profile terbaru (force refresh dari DB)
-    const { data: latestProfile } = await sb
-        .from('profiles')
-        .select('xp, badges, materials_read_count')
-        .eq('id', user.id)
-        .single();
-    
-    if (latestProfile) {
-        exp = latestProfile.xp ?? 0;
-        badgeCount = latestProfile.badges ?? 0;
-        materiSelesai = latestProfile.materials_read_count ?? 0;
-    }
+        // Update UI Stats
+        const statsValues = document.querySelectorAll('.profile-stats .profile-stat-value');
+        if (statsValues && statsValues.length >= 3) {
+            statsValues[0].textContent = String(stats.materiSelesai);
+            statsValues[1].textContent = String(stats.badgeCount);
+            statsValues[2].textContent = String(stats.xp);
+        }
 
-    // Update UI Stats
-    const statsValues = document.querySelectorAll('.profile-stats .profile-stat-value');
-    if (statsValues && statsValues.length >= 3) {
-        statsValues[0].textContent = String(materiSelesai);
-        statsValues[1].textContent = String(badgeCount);
-        statsValues[2].textContent = String(exp);
-    }
-
-    const savedMenu = Array.from(document.querySelectorAll('.menu-item-content p')).find((p) => String(p.textContent || '').includes('materi tersimpan'));
-    if (savedMenu) {
-        const { count: favCount } = await sb
-            .from('user_favorites')
-            .select('materi_id', { count: 'exact', head: true })
-            .eq('user_id', user.id);
-        savedMenu.textContent = `${favCount || 0} materi tersimpan`;
-    }
+        const savedMenu = Array.from(document.querySelectorAll('.menu-item-content p')).find((p) => String(p.textContent || '').includes('materi tersimpan'));
+        if (savedMenu) {
+            const { count: favCount } = await sb
+                .from('user_favorites')
+                .select('materi_id', { count: 'exact', head: true })
+                .eq('user_id', user.id);
+            savedMenu.textContent = `${favCount || 0} materi tersimpan`;
+        }
     } catch (e) {
         // ignore
     }
@@ -2175,6 +2223,12 @@ async function initChatRoomPage() {
         const chatMessages = document.getElementById('chatMessages');
         const chatForm = document.getElementById('chatForm');
         const chatInput = document.getElementById('chatInput');
+        
+        // New UI Elements
+        const btnSticker = document.getElementById('btnSticker');
+        const btnImage = document.getElementById('btnImage');
+        const imageInput = document.getElementById('imageInput');
+        const stickerPicker = document.getElementById('stickerPicker');
 
         // Ambil profil user untuk nama & avatar
         const { data: profile } = await sb.from('profiles').select('username, full_name, avatar_url').eq('id', user.id).single();
@@ -2184,6 +2238,20 @@ async function initChatRoomPage() {
         // Fungsi Render Pesan
         const renderMessage = (msg, isMine) => {
             const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            let contentHtml = '';
+            const content = msg.content || '';
+            
+            if (content.startsWith('STICKER::')) {
+                const url = content.replace('STICKER::', '');
+                contentHtml = `<img src="${escapeHtml(url)}" style="width: 80px; height: 80px; object-fit: contain;">`;
+            } else if (content.startsWith('IMAGE::')) {
+                const url = content.replace('IMAGE::', '');
+                contentHtml = `<img src="${escapeHtml(url)}" style="max-width: 200px; max-height: 200px; border-radius: 8px; cursor: pointer;" onclick="window.open('${escapeHtml(url)}', '_blank')">`;
+            } else {
+                contentHtml = escapeHtml(content);
+            }
+
             const bubbleHtml = `
                 <div style="display: flex; gap: 10px; ${isMine ? 'flex-direction: row-reverse;' : ''} align-items: flex-end; margin-bottom: 4px;">
                     ${!isMine ? `<img src="${msg.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100'}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; margin-bottom: 4px;">` : ''}
@@ -2191,7 +2259,7 @@ async function initChatRoomPage() {
                         ${!isMine ? `<div style="font-size: 11px; color: var(--text-light); margin-bottom: 2px; margin-left: 4px;">${escapeHtml(msg.sender_name || 'User')}</div>` : ''}
                         <div style="padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-wrap: break-word; 
                             ${isMine ? 'background: var(--primary); color: white; border-bottom-right-radius: 4px;' : 'background: white; border: 1px solid var(--border); border-bottom-left-radius: 4px;'}">
-                            ${escapeHtml(msg.content)}
+                            ${contentHtml}
                         </div>
                         <div style="font-size: 10px; color: var(--text-light); margin-top: 2px; ${isMine ? 'text-align: right; margin-right: 4px;' : 'margin-left: 4px;'}">
                             ${time}
@@ -2241,36 +2309,139 @@ async function initChatRoomPage() {
             })
             .subscribe();
 
-        // Handle Kirim Pesan
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const text = chatInput.value.trim();
-            if (!text) return;
-
-            // Optimistic UI
+        // --- Helper Send Message ---
+        async function sendMessage(content) {
+             // Optimistic UI
             const optimisticMsg = {
-                content: text,
+                content: content,
                 created_at: new Date().toISOString(),
                 sender_name: myName,
                 avatar_url: myAvatar,
                 user_id: user.id
             };
             renderMessage(optimisticMsg, true);
-            chatInput.value = '';
 
             // Kirim ke DB
             const { error } = await sb.from('messages').insert({
                 room_id: roomId,
                 user_id: user.id,
-                content: text,
+                content: content,
                 sender_name: myName,
                 avatar_url: myAvatar
             });
 
             if (error) {
                 console.error('Gagal kirim pesan:', error);
-                alert('Gagal mengirim pesan.');
+                alert(`Gagal mengirim pesan: ${error.message}`);
             }
+        }
+
+        // --- Sticker Logic ---
+        const stickers = [
+            'https://img.icons8.com/color/96/happy.png',
+            'https://img.icons8.com/color/96/sad.png',
+            'https://img.icons8.com/color/96/thumb-up.png',
+            'https://img.icons8.com/color/96/heart_eyes.png',
+            'https://img.icons8.com/color/96/crying.png',
+            'https://img.icons8.com/color/96/lol.png',
+            'https://img.icons8.com/color/96/angry.png',
+            'https://img.icons8.com/color/96/ok.png'
+        ];
+
+        if (stickerPicker && btnSticker) {
+            stickerPicker.innerHTML = stickers.map(url => 
+                `<img src="${url}" class="sticker-item" data-url="${url}" style="width: 48px; height: 48px; cursor: pointer; transition: transform 0.1s;">`
+            ).join('');
+
+            // Toggle Picker
+            btnSticker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isHidden = stickerPicker.style.display === 'none';
+                stickerPicker.style.display = isHidden ? 'grid' : 'none';
+            });
+
+            // Hide when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!stickerPicker.contains(e.target) && e.target !== btnSticker) {
+                    stickerPicker.style.display = 'none';
+                }
+            });
+
+            // Select Sticker
+            stickerPicker.querySelectorAll('.sticker-item').forEach(img => {
+                img.addEventListener('click', async () => {
+                    const url = img.dataset.url;
+                    await sendMessage(`STICKER::${url}`);
+                    stickerPicker.style.display = 'none';
+                });
+            });
+        }
+
+        // --- Image Logic ---
+        if (btnImage && imageInput) {
+            btnImage.addEventListener('click', () => {
+                imageInput.click();
+            });
+
+            imageInput.addEventListener('change', async () => {
+                const file = imageInput.files[0];
+                if (!file) return;
+
+                // Validate File Size (max 2MB)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('Ukuran gambar maksimal 2MB.');
+                    return;
+                }
+
+                // Upload to Supabase Storage
+                const fileExt = file.name.split('.').pop();
+                const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const filePath = `${roomId}/${fileName}`;
+
+                // Show loading
+                const loadingId = 'loading-' + Date.now();
+                chatMessages.insertAdjacentHTML('beforeend', `<div id="${loadingId}" style="text-align: center; font-size: 12px; color: var(--text-light); margin: 10px 0;"><i class="fas fa-spinner fa-spin"></i> Mengupload gambar...</div>`);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                try {
+                    // Cek apakah user sudah login session masih valid
+                    const { data: { session } } = await sb.auth.getSession();
+                    if (!session) throw new Error('Session expired');
+
+                    // Upload
+                    const { data, error } = await sb.storage
+                        .from('chat-uploads') // Bucket name must exist
+                        .upload(filePath, file);
+
+                    if (error) throw error;
+
+                    // Get Public URL
+                    const { data: { publicUrl } } = sb.storage
+                        .from('chat-uploads')
+                        .getPublicUrl(filePath);
+
+                    // Send Message
+                    await sendMessage(`IMAGE::${publicUrl}`);
+                    
+                } catch (err) {
+                    console.error('Upload error:', err);
+                    alert('Gagal upload gambar. Pastikan bucket "chat-uploads" tersedia di Supabase Storage dan policy "public" sudah diatur.');
+                } finally {
+                    const loadingEl = document.getElementById(loadingId);
+                    if (loadingEl) loadingEl.remove();
+                    imageInput.value = ''; // Reset
+                }
+            });
+        }
+
+        // Handle Text Submit
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const text = chatInput.value.trim();
+            if (!text) return;
+            
+            chatInput.value = '';
+            await sendMessage(text);
         });
 
     } catch (e) {

@@ -61,8 +61,12 @@
                         <i class="fas fa-users"></i>
                         <span>Tokoh &amp; Kisah</span>
                     </a>
+                    <a href="games.html" class="nav-item">
+                        <i class="fas fa-gamepad"></i>
+                        <span>Mini Games</span>
+                    </a>
                 </div>
-
+                
                 <div class="nav-section">
                     <div class="nav-section-title">Lainnya</div>
                     <a href="notification.html" class="nav-item">
@@ -79,16 +83,24 @@
                     </a>
                 </div>
             </nav>
-
+            
             <div class="sidebar-footer">
-                <a class="user-profile" href="profile.html" style="text-decoration: none; color: inherit;">
-                    <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
-                    <div class="user-info">
-                        <div class="user-name">...</div>
-                        <div class="user-role">Pelajar Aktif</div>
+                <div class="profile-container" style="position:relative;">
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="profile-edit.html" class="dropdown-item"><i class="fas fa-user-pen"></i> Edit Profil</a>
+                        <a href="login.html" class="dropdown-item"><i class="fas fa-right-from-bracket"></i> Ganti Akun</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" onclick="handleLogout(event)" class="dropdown-item" style="color:#e53935;"><i class="fas fa-power-off"></i> Logout</a>
                     </div>
-                    <i class="fas fa-chevron-right" style="color: var(--text-light); font-size: 12px;"></i>
-                </a>
+                    <div class="user-profile" onclick="toggleProfileMenu(event)">
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
+                        <div class="user-info">
+                            <div class="user-name">...</div>
+                            <div class="user-role">Pelajar Aktif</div>
+                        </div>
+                        <i class="fas fa-chevron-up" style="color: var(--text-light); font-size: 12px;"></i>
+                    </div>
+                </div>
             </div>
         </aside>
 
@@ -124,20 +136,7 @@
 
                 <div class="category-pills" id="materiCategoryPills"></div>
 
-                <div class="cards-grid" id="materiCards">
-                    <!-- Contoh Materi -->
-                    <div class="card" style="display: flex; flex-direction: column; overflow: hidden;">
-                        <div class="card-image-wrapper" style="width: 100%; height: 180px; position: relative;">
-                            <img src="https://images.unsplash.com/photo-1599940824399-b87987ced7bb?w=400" alt="Materi Sejarah" style="width: 100%; height: 100%; object-fit: cover;">
-                        </div>
-                        <div class="card-content" style="flex: 1; display: flex; flex-direction: column; padding: 16px;">
-                            <div class="card-meta">Sejarah Dunia</div>
-                            <h3 class="card-title" style="margin: 8px 0; font-size: 18px; line-height: 1.4;">Perang Dingin & Dampaknya</h3>
-                            <p class="card-text" style="margin-bottom: 16px; flex: 1;">Analisis mendalam tentang konflik blok barat dan timur.</p>
-                            <button class="btn-primary" style="width: 100%;">Baca Materi</button>
-                        </div>
-                    </div>
-                </div>
+                <div class="cards-grid" id="materiCards"></div>
             </div>
         </main>
     </div>
@@ -148,13 +147,13 @@
                 <i class="fas fa-home"></i>
                 <span>Beranda</span>
             </a>
+            <a href="timeline.html" class="mobile-nav-item">
+                <i class="fas fa-stream"></i>
+                <span>Timeline</span>
+            </a>
             <a href="materi.html" class="mobile-nav-item active">
                 <i class="fas fa-book"></i>
                 <span>Materi</span>
-            </a>
-            <a href="quizzes.html" class="mobile-nav-item">
-                <i class="fas fa-circle-question"></i>
-                <span>Kuis</span>
             </a>
             <a href="profile.html" class="mobile-nav-item">
                 <i class="fas fa-user"></i>

@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TimeTrack - Mini Games Sejarah</title>
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* Game Specific Styles */
+        .game-card-container {
+            perspective: 1000px;
+            width: 100px;
+            height: 100px;
+            cursor: pointer;
+        }
+        
+        .game-card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .game-card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .game-card.matched .game-card-front {
+            border: 4px solid var(--green);
+            background: #e8f5e9;
+        }
+
+        .game-card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 12px;
+            text-align: center;
+            padding: 5px;
+            font-weight: bold;
+        }
+
+        .game-card-back {
+            background: var(--primary);
+            color: white;
+            transform: rotateY(0deg);
+        }
+
+        .game-card-front {
+            background: white;
+            color: var(--text);
+            border: 2px solid var(--primary);
+            transform: rotateY(180deg);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            max-width: 500px;
+            margin: 20px auto;
+        }
+
+        @media (max-width: 600px) {
+            .game-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+            .game-card-container {
+                height: 90px;
+            }
+        }
+
+        /* Victory Modal */
+        .victory-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .victory-content {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transform: scale(0.8);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+
+        .victory-modal.show .victory-content {
+            transform: scale(1);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="mainApp" class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <div class="logo-icon"><i class="fas fa-landmark"></i></div>
+                    <span>TimeTrack</span>
+                </div>
+            </div>
+
+            <nav class="nav-menu">
+                <div class="nav-section">
+                    <div class="nav-section-title">Menu Utama</div>
+                    <a href="index.html" class="nav-item">
+                        <i class="fas fa-home"></i>
+                        <span>Beranda</span>
+                    </a>
+                    <a href="materi.html" class="nav-item">
+                        <i class="fas fa-book"></i>
+                        <span>Materi Pembelajaran</span>
+                    </a>
+                    <a href="quizzes.html" class="nav-item">
+                        <i class="fas fa-circle-question"></i>
+                        <span>Kuis</span>
+                    </a>
+                    <a href="community.html" class="nav-item">
+                        <i class="fas fa-comments"></i>
+                        <span>Komunitas</span>
+                    </a>
+                    <a href="tasks.html" class="nav-item">
+                        <i class="fas fa-list-check"></i>
+                        <span>Tugas</span>
+                    </a>
+                    <a href="premium.html" class="nav-item">
+                        <i class="fas fa-crown"></i>
+                        <span>Premium</span>
+                    </a>
+                    <a href="shop.html" class="nav-item">
+                        <i class="fas fa-store"></i>
+                        <span>Toko</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Eksplorasi</div>
+                    <a href="timeline.html" class="nav-item">
+                        <i class="fas fa-stream"></i>
+                        <span>Timeline Sejarah</span>
+                    </a>
+                    <a href="tokoh.html" class="nav-item">
+                        <i class="fas fa-users"></i>
+                        <span>Tokoh &amp; Kisah</span>
+                    </a>
+                    <a href="games.html" class="nav-item active">
+                        <i class="fas fa-gamepad"></i>
+                        <span>Mini Games</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Lainnya</div>
+                    <a href="notification.html" class="nav-item">
+                        <i class="fas fa-bell"></i>
+                        <span>Notifikasi</span>
+                    </a>
+                    <a href="saved.html" class="nav-item">
+                        <i class="fas fa-bookmark"></i>
+                        <span>Tersimpan</span>
+                    </a>
+                    <a href="achievement.html" class="nav-item">
+                        <i class="fas fa-trophy"></i>
+                        <span>Pencapaian</span>
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <a class="user-profile" href="profile.html" style="text-decoration: none; color: inherit;">
+                    <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
+                    <div class="user-info">
+                        <div class="user-name">...</div>
+                        <div class="user-role">Pelajar Aktif</div>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color: var(--text-light); font-size: 12px;"></i>
+                </a>
+            </div>
+        </aside>
+
+        <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div style="display: flex; align-items: center; flex: 1;">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()" type="button">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <div class="search-bar">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Cari game...">
+                    </div>
+                </div>
+
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="window.location.href='notification.html'" type="button">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge">3</span>
+                    </button>
+                    <button class="icon-btn" onclick="window.location.href='profile.html'" type="button">
+                        <i class="fas fa-user"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <div class="section-header">
+                    <h2 class="section-title">🎮 Mini Games Sejarah</h2>
+                    <p style="color: var(--text-light); font-size: 14px;">Belajar sejarah sambil bermain!</p>
+                </div>
+
+                <!-- Game Selection Menu -->
+                <div id="gameMenu" class="cards-grid">
+                    <!-- Memory Match -->
+                    <div class="card" onclick="startGame('memory')" style="cursor: pointer;">
+                        <div class="card-image" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(43,92,165,0.10), rgba(43,92,165,0.02)); height: 160px;">
+                            <i class="fas fa-puzzle-piece" style="font-size:48px;color:rgba(31,60,115,0.65)"></i>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-meta">Asah Otak</div>
+                            <h3 class="card-title">Memory Match</h3>
+                            <p class="card-text">Cocokkan kartu tokoh pahlawan dan peristiwa bersejarah.</p>
+                        </div>
+                        <div class="card-footer">
+                            <span class="card-tag">Mudah</span>
+                            <span style="color: var(--primary); font-size: 13px; font-weight: 600;">Main Sekarang <i class="fas fa-play"></i></span>
+                        </div>
+                    </div>
+
+                    <!-- Chronology Puzzle -->
+                    <div class="card" onclick="startGame('chronology')" style="cursor: pointer;">
+                        <div class="card-image" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(255,193,7,0.10), rgba(255,193,7,0.02)); height: 160px;">
+                            <i class="fas fa-sort-numeric-down" style="font-size:48px;color:#ffc107"></i>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-meta">Logika</div>
+                            <h3 class="card-title">Susun Kronologi</h3>
+                            <p class="card-text">Urutkan peristiwa sejarah dari tahun terlama ke terbaru.</p>
+                        </div>
+                        <div class="card-footer">
+                            <span class="card-tag">Sedang</span>
+                            <span style="color: var(--primary); font-size: 13px; font-weight: 600;">Main Sekarang <i class="fas fa-play"></i></span>
+                        </div>
+                    </div>
+
+                    <!-- Map Quiz -->
+                    <div class="card" onclick="startGame('map')" style="cursor: pointer;">
+                        <div class="card-image" style="display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg, rgba(76,175,80,0.10), rgba(76,175,80,0.02)); height: 160px;">
+                            <i class="fas fa-map-marked-alt" style="font-size:48px;color:#4caf50"></i>
+                        </div>
+                        <div class="card-body">
+                            <div class="card-meta">Geografi</div>
+                            <h3 class="card-title">Jelajah Peta</h3>
+                            <p class="card-text">Tunjuk lokasi terjadinya peristiwa bersejarah di peta Indonesia.</p>
+                        </div>
+                        <div class="card-footer">
+                            <span class="card-tag">Sulit</span>
+                            <span style="color: var(--primary); font-size: 13px; font-weight: 600;">Main Sekarang <i class="fas fa-play"></i></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Game Container (Hidden by default) -->
+                <div id="gameContainer" style="display: none;">
+                    <div class="card" style="padding: 20px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <button class="btn-secondary" onclick="exitGame()">
+                                <i class="fas fa-arrow-left"></i> Kembali
+                            </button>
+                            <div style="text-align: right;">
+                                <div style="font-size: 14px; color: var(--text-light);">Skor</div>
+                                <div id="gameScore" style="font-size: 24px; font-weight: bold; color: var(--primary);">0</div>
+                            </div>
+                        </div>
+
+                        <!-- MEMORY GAME AREA -->
+                        <div id="memoryGameArea" style="text-align: center; display: none;">
+                            <h3 style="margin-bottom: 10px;">Temukan Pasangannya!</h3>
+                            <p id="gameInstruction" style="color: var(--text-light); margin-bottom: 20px;">Klik kartu untuk membukanya.</p>
+                            
+                            <div id="memoryGrid" class="game-grid">
+                                <!-- Cards injected via JS -->
+                            </div>
+
+                            <button id="restartBtn" class="btn-primary" onclick="initMemoryGame()" style="display: none; margin: 20px auto;">
+                                Main Lagi <i class="fas fa-redo"></i>
+                            </button>
+                        </div>
+
+                        <!-- CHRONOLOGY GAME AREA -->
+                        <div id="chronologyGameArea" style="text-align: center; display: none;">
+                            <h3 style="margin-bottom: 10px;">Susun Garis Waktu</h3>
+                            <p style="color: var(--text-light); margin-bottom: 20px;">Urutkan peristiwa dari <b>Tahun Terlama (Atas)</b> ke <b>Tahun Terbaru (Bawah)</b>.<br>Klik item untuk memilih, lalu klik item lain untuk menukar posisi.</p>
+                            
+                            <div id="chronoList" style="max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px;">
+                                <!-- Items injected via JS -->
+                            </div>
+
+                            <div style="margin-top: 25px; display: flex; gap: 10px; justify-content: center;">
+                                <button id="checkChronoBtn" class="btn-primary" onclick="checkChronology()" style="display: inline-block;">
+                                    <i class="fas fa-check"></i> Cek Jawaban
+                                </button>
+                                <button id="nextChronoBtn" class="btn-primary" onclick="initChronologyGame()" style="display: none;">
+                                    Soal Selanjutnya <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- MAP QUIZ AREA -->
+                        <div id="mapGameArea" style="text-align: center; display: none;">
+                            <h3 style="margin-bottom: 10px;">Di mana peristiwa ini terjadi?</h3>
+                            <p id="mapQuestion" style="font-size: 18px; font-weight: bold; color: var(--primary); margin-bottom: 15px;">-</p>
+                            
+                            <div id="gameMap" style="height: 400px; width: 100%; border-radius: 12px; margin-bottom: 20px; z-index: 1;"></div>
+
+                            <div id="mapFeedback" style="display: none; padding: 15px; border-radius: 8px; margin-bottom: 20px;"></div>
+
+                            <button id="nextMapBtn" class="btn-primary" onclick="nextMapQuestion()" style="display: none; margin: 0 auto;">
+                                Soal Selanjutnya <i class="fas fa-arrow-right"></i>
+                            </button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Victory Modal -->
+    <div id="victoryModal" class="victory-modal">
+        <div class="victory-content">
+            <div style="font-size: 60px; margin-bottom: 10px;">🏆</div>
+            <h2 style="color: var(--primary); margin-bottom: 10px;">Selamat!</h2>
+            <p id="victoryMessage" style="color: var(--text-light); margin-bottom: 20px;">Kamu berhasil menyelesaikan tantangan ini.</p>
+            <div style="font-size: 24px; font-weight: bold; color: var(--green); margin-bottom: 25px;">
+                +<span id="victoryScore">0</span> XP
+            </div>
+            <button class="btn-primary" onclick="closeVictoryModal()" style="width: 100%;">Lanjut Main <i class="fas fa-arrow-right"></i></button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="assets/js/supabaseClient.js"></script>
+    <script src="assets/js/bootstrap.js"></script>
+    <script src="assets/js/app.js"></script>
+    <script src="assets/js/games.js"></script>
+</body>
+</html>

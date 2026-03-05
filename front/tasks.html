@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TimeTrack - Tugas</title>
+    <title>Tugas & Latihan - TimeTrack</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-
     <div id="mainApp" class="app-container">
+        <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="logo">
@@ -17,7 +17,7 @@
                     <span>TimeTrack</span>
                 </div>
             </div>
-
+            
             <nav class="nav-menu">
                 <div class="nav-section">
                     <div class="nav-section-title">Menu Utama</div>
@@ -62,7 +62,7 @@
                         <span>Tokoh &amp; Kisah</span>
                     </a>
                 </div>
-
+                
                 <div class="nav-section">
                     <div class="nav-section-title">Lainnya</div>
                     <a href="notification.html" class="nav-item">
@@ -79,37 +79,49 @@
                     </a>
                 </div>
             </nav>
-
+            
             <div class="sidebar-footer">
-                <a class="user-profile" href="profile.html" style="text-decoration: none; color: inherit;">
-                    <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
-                    <div class="user-info">
-                        <div class="user-name">...</div>
-                        <div class="user-role">Pelajar Aktif</div>
+                <div class="profile-container" style="position:relative;">
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="profile-edit.html" class="dropdown-item"><i class="fas fa-user-pen"></i> Edit Profil</a>
+                        <a href="login.html" class="dropdown-item"><i class="fas fa-right-from-bracket"></i> Ganti Akun</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" onclick="handleLogout(event)" class="dropdown-item" style="color:#e53935;"><i class="fas fa-power-off"></i> Logout</a>
                     </div>
-                    <i class="fas fa-chevron-right" style="color: var(--text-light); font-size: 12px;"></i>
-                </a>
+                    <div class="user-profile" onclick="toggleProfileMenu(event)">
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
+                        <div class="user-info">
+                            <div class="user-name">...</div>
+                            <div class="user-role">Pelajar Aktif</div>
+                        </div>
+                        <i class="fas fa-chevron-up" style="color: var(--text-light); font-size: 12px;"></i>
+                    </div>
+                </div>
             </div>
         </aside>
 
+        <!-- Overlay for mobile -->
         <div class="overlay" id="overlay" onclick="toggleSidebar()"></div>
 
+        <!-- Main Content -->
         <main class="main-content">
             <header class="top-header">
                 <div style="display: flex; align-items: center; flex: 1;">
-                    <button class="mobile-menu-btn" onclick="toggleSidebar()" type="button">
+                    <button class="mobile-menu-btn" onclick="toggleSidebar()">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <div class="search-bar">
-                        <i class="fas fa-search"></i>
-                        <input type="text" placeholder="Cari tugas...">
-                    </div>
+                    <h2 style="font-size: 18px; margin: 0; color: var(--text);">Tugas & Latihan</h2>
                 </div>
-
+                
                 <div class="header-actions">
+                    <!-- XP Badge -->
+                    <div class="xp-badge" style="background: var(--bg-light); padding: 8px 16px; border-radius: 20px; display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--primary); margin-right: 8px;">
+                        <i class="fas fa-star" style="color: #f59e0b;"></i>
+                        <span id="headerUserXp">0</span> XP
+                    </div>
                     <button class="icon-btn" onclick="window.location.href='notification.html'" type="button">
                         <i class="fas fa-bell"></i>
-                        <span class="badge">3</span>
+                        <span class="badge" style="display:none">0</span>
                     </button>
                     <button class="icon-btn" onclick="window.location.href='profile.html'" type="button">
                         <i class="fas fa-user"></i>
@@ -119,39 +131,20 @@
 
             <div class="content-wrapper">
                 <div class="section-header">
-                    <h2 class="section-title">✅ Tugas</h2>
+                    <h2 class="section-title">Daftar Tugas Harian</h2>
                 </div>
 
-                <div class="card" style="padding: 18px;">
-                    <div class="card-meta">Tampilan sementara</div>
-                    <h3 class="card-title" style="margin-top: 6px;">Segera hadir</h3>
-                    <p class="card-text">Nanti halaman ini akan terhubung ke tabel <b>tasks</b> dan progres user di <b>user_tasks</b>.</p>
+                <!-- Container untuk Tugas Harian Dinamis -->
+                <div id="dailyTasksContainer" class="tasks-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px;">
+                    <!-- Loading State -->
+                    <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-light);">
+                        <i class="fas fa-spinner fa-spin"></i> Memuat tugas harian...
+                    </div>
                 </div>
             </div>
         </main>
     </div>
-
-    <nav class="mobile-nav">
-        <div class="mobile-nav-items">
-            <a href="index.html" class="mobile-nav-item">
-                <i class="fas fa-home"></i>
-                <span>Beranda</span>
-            </a>
-            <a href="tasks.html" class="mobile-nav-item active">
-                <i class="fas fa-list-check"></i>
-                <span>Tugas</span>
-            </a>
-            <a href="materi.html" class="mobile-nav-item">
-                <i class="fas fa-book"></i>
-                <span>Materi</span>
-            </a>
-            <a href="profile.html" class="mobile-nav-item">
-                <i class="fas fa-user"></i>
-                <span>Profil</span>
-            </a>
-        </div>
-    </nav>
-
+    
     <script src="assets/js/app.js"></script>
 </body>
 </html>

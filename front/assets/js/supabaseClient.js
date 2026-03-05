@@ -1,4 +1,5 @@
 let supabaseClient = null;
+let supabaseClientPromise = null;
 let supabasePublicConfig = null;
 
 function loadSupabaseSdk() {
@@ -19,32 +20,70 @@ function loadSupabaseSdk() {
 async function getSupabasePublicConfig() {
     if (supabasePublicConfig) return supabasePublicConfig;
 
+    // 1. Coba ambil dari window.TT_PUBLIC_CONFIG (Local Fallback)
+    if (window.TT_PUBLIC_CONFIG && window.TT_PUBLIC_CONFIG.SUPABASE_URL && window.TT_PUBLIC_CONFIG.SUPABASE_ANON_KEY) {
+        supabasePublicConfig = {
+            url: window.TT_PUBLIC_CONFIG.SUPABASE_URL,
+            anonKey: window.TT_PUBLIC_CONFIG.SUPABASE_ANON_KEY
+        };
+        return supabasePublicConfig;
+    }
+
+    // 2. Coba ambil dari Backend API (jika ada)
     try {
         const res = await fetch('/api/supabase-public-config', { cache: 'no-store' });
-        if (!res.ok) {
-            const message = await res.text();
-            throw new Error(message || `HTTP ${res.status}`);
+        if (res.ok) {
+            const cfg = await res.json();
+            if (cfg && cfg.url && cfg.anonKey) {
+                supabasePublicConfig = { url: cfg.url, anonKey: cfg.anonKey };
+                return supabasePublicConfig;
+            }
         }
-        const cfg = await res.json();
-        if (!cfg || !cfg.url || !cfg.anonKey) {
-            throw new Error('Config Supabase tidak lengkap.');
-        }
-        supabasePublicConfig = { url: String(cfg.url), anonKey: String(cfg.anonKey) };
-        return supabasePublicConfig;
     } catch (e) {
-        const msg = 'Konfigurasi Supabase belum siap. Isi SUPABASE_URL & SUPABASE_ANON_KEY di backend/.env lalu jalankan server.';
-        console.error(msg, e);
-        alert(msg);
-        throw new Error(msg);
+        console.warn('Backend config fetch failed, checking local fallback...');
     }
+
+    // 3. Fallback Terakhir (Hardcoded untuk Development - JANGAN DIGUNAKAN DI PRODUCTION JIKA RAHASIA)
+    // Untuk development Trae, kita bisa inject nilai ini jika user memberikannya
+    // Namun karena saya tidak punya kredensial Anda, saya akan minta user untuk mengisi config.js
+    
+    throw new Error('Konfigurasi Supabase tidak ditemukan. Pastikan file "assets/js/config.js" ada dan berisi SUPABASE_URL & SUPABASE_ANON_KEY.');
 }
 
 async function getSupabaseClient() {
     if (supabaseClient) return supabaseClient;
-    await loadSupabaseSdk();
-    const cfg = await getSupabasePublicConfig();
-    supabaseClient = window.supabase.createClient(cfg.url, cfg.anonKey);
-    return supabaseClient;
+    if (supabaseClientPromise) return supabaseClientPromise;
+    supabaseClientPromise = (async () => {
+        await loadSupabaseSdk();
+        const cfg = await getSupabasePublicConfig();
+        
+        const client = window.supabase.createClient(cfg.url, cfg.anonKey, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true
+            }
+        });
+
+        // Listener Perubahan Auth (Penting untuk menangani Token Expired)
+        client.auth.onAuthStateChange((event, session) => {
+            if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+                // Clear local data
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('sb-')) localStorage.removeItem(key);
+                });
+                
+                if (!window.location.pathname.endsWith('login.html')) {
+                     window.location.href = 'login.html';
+                }
+            }
+        });
+
+        supabaseClient = client;
+        supabaseClientPromise = null;
+        return client;
+    })();
+    return supabaseClientPromise;
 }
 
 async function isPremiumActive(sb, userId) {

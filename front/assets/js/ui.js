@@ -57,6 +57,38 @@ function switchNotifTab(tabElement, type) {
     if (type === 'promo' && promo) promo.classList.remove('hidden');
 }
 
+// Function to update notification badge
+function updateNotificationBadge() {
+    const general = document.getElementById('generalNotif');
+    const system = document.getElementById('systemNotif');
+    const promo = document.getElementById('promoNotif');
+    
+    let count = 0;
+    
+    // Count only if element exists and is visible (or logically exists)
+    if (general) count += general.querySelectorAll('.notification-item').length;
+    if (system) count += system.querySelectorAll('.notification-item').length;
+    if (promo) count += promo.querySelectorAll('.notification-item').length;
+
+    const badge = document.querySelector('.header-right .icon-btn .badge');
+    if (badge) {
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.style.display = 'flex';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    // Update individual tab badges if they exist
+    const generalTabBadge = document.querySelector('.notification-tab[onclick*="general"] .tab-badge');
+    if (generalTabBadge && general) {
+        const c = general.querySelectorAll('.notification-item').length;
+        generalTabBadge.textContent = c;
+        generalTabBadge.style.display = c > 0 ? 'inline-flex' : 'none';
+    }
+}
+
 function selectLevel(card) {
     const cards = card.parentElement.querySelectorAll('.level-card');
     cards.forEach(c => c.classList.remove('active'));

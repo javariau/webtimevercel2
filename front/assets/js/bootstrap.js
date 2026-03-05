@@ -251,20 +251,76 @@ function initApp() {
 
     initMateriPage();
     initTimelinePage();
+    
+    // Auto-detect detail page
+    if (window.location.pathname.includes('content-detail.html')) {
+        if (typeof window.initMateriDetailPage === 'function') {
+            window.initMateriDetailPage();
+        }
+    }
 
     if (typeof window.initDataPages === 'function') {
         window.initDataPages();
     }
 
-    const updateUserUI = async () => {
-        try {
-            const sb = await getSupabaseClient();
-            const { data: { session } } = await sb.auth.getSession();
-            if (!session || !session.user) return;
+function updateDashboardStats(user) {
+    // Default 0 jika tidak ada data
+    const stats = {
+        materi: 0,
+        badge: 0,
+        xp: 0
+    };
+    
+    // Fetch real data from DB if needed
+    // Untuk saat ini kita pakai data dari metadata profile user jika ada
+    if (user && user.user_metadata) {
+        stats.xp = user.user_metadata.xp || 0;
+        // badge dan materi bisa diambil dari tabel terkait nanti
+    }
 
-            const user = session.user;
-            const metadata = user.user_metadata || {};
-            const displayName = metadata.full_name || metadata.username || user.email;
+    // Update UI
+    const statValues = document.querySelectorAll('.hero-stats .stat-value');
+    if (statValues.length >= 3) {
+        statValues[0].textContent = stats.materi;
+        statValues[1].textContent = stats.badge;
+        statValues[2].textContent = stats.xp;
+    }
+}
+
+// Panggil dalam updateUserUI
+window.updateUserUI = async () => {
+    try {
+        const sb = await getSupabaseClient();
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session || !session.user) return;
+        
+        const user = session.user;
+        updateDashboardStats(user); // Update stats here
+        
+        // Also get fresh profile data for XP
+        const { data: profile } = await sb.from('profiles').select('xp').eq('id', user.id).single();
+        if (profile) {
+            // Update Dashboard Stats
+            const statValues = document.querySelectorAll('.hero-stats .stat-value');
+            if (statValues.length >= 3) {
+                statValues[2].textContent = profile.xp || 0;
+            }
+            
+            // Update Header XP (jika ada)
+            const headerXp = document.getElementById('headerUserXp');
+            if (headerXp) {
+                headerXp.textContent = profile.xp || 0;
+            }
+        }
+        
+        const metadata = user.user_metadata || {};
+        const displayName = metadata.full_name || metadata.username || user.email;
+            let premiumOk = false;
+            try {
+                premiumOk = typeof window.isPremiumActive === 'function' ? await window.isPremiumActive(sb, user.id) : false;
+            } catch (e) {
+                premiumOk = false;
+            }
 
             // Update sidebar profile
             const sidebarUserName = document.querySelector('.sidebar .user-name');
@@ -273,10 +329,11 @@ function initApp() {
             }
 
             const sidebarUserRole = document.querySelector('.sidebar .user-role');
-            if (sidebarUserRole && metadata.role) {
-                sidebarUserRole.textContent = metadata.role;
-            } else if (sidebarUserRole && metadata.username) {
-                sidebarUserRole.textContent = `@${metadata.username}`;
+            if (sidebarUserRole) {
+                let baseRole = 'Pelajar Aktif';
+                if (metadata.role) baseRole = metadata.role;
+                else if (metadata.username) baseRole = `@${metadata.username}`;
+                sidebarUserRole.textContent = premiumOk ? `Premium • ${baseRole}` : baseRole;
             }
 
             // Update sidebar avatar
@@ -310,6 +367,32 @@ function initApp() {
                  dashboardWelcome.textContent = `Selamat Datang, ${firstName}! 👋`;
             }
 
+            document.querySelectorAll('a.nav-item[href="premium.html"] span, a.mobile-nav-item[href="premium.html"] span').forEach((el) => {
+                el.textContent = premiumOk ? 'Premium (Aktif)' : 'Premium';
+            });
+
+            if (String(window.location.pathname || '').toLowerCase().endsWith('premium.html')) {
+                const hero = document.querySelector('.hero-section');
+                if (hero && premiumOk && !document.getElementById('ttPremiumActiveBanner')) {
+                    const banner = document.createElement('div');
+                    banner.id = 'ttPremiumActiveBanner';
+                    banner.className = 'card';
+                    banner.style.cssText = 'padding: 18px; margin-bottom: 18px; border: 2px solid rgba(212,165,116,0.5);';
+                    banner.innerHTML = `<div class="card-meta">Premium</div><h3 class="card-title" style="margin-top: 6px;">Kamu sudah berlangganan</h3><p class="card-text">Akun kamu aktif Premium. Kamu bisa akses video materi, komunitas, tugas, dan timeline.</p>`;
+                    const wrapper = document.querySelector('.content-wrapper');
+                    if (wrapper) {
+                        const first = wrapper.firstElementChild;
+                        if (first) wrapper.insertBefore(banner, first);
+                        else wrapper.appendChild(banner);
+                    }
+
+                    const heroTitle = hero.querySelector('h1');
+                    const heroDesc = hero.querySelector('p');
+                    if (heroTitle) heroTitle.textContent = 'Premium kamu aktif';
+                    if (heroDesc) heroDesc.textContent = 'Terima kasih sudah berlangganan. Nikmati semua fitur premium tanpa batas.';
+                }
+            }
+
             // Check Premium Expiry (Auto-Downgrade)
             if (metadata.plan === 'premium' && metadata.premium_until) {
                 const today = new Date();
@@ -338,6 +421,8 @@ function initApp() {
     updateUserUI();
     requireAuthIfNeeded();
     initPremiumGuard();
+    initPremiumRealtime();
+    showActivatedToastIfNeeded();
 }
 
 // Global Auth Guard
@@ -375,24 +460,50 @@ async function requireAuthIfNeeded() {
 
     if (!session) {
         // Jika tidak ada sesi, lempar ke landing page
-        // Gunakan relative path agar aman di semua environment (localhost/hosting)
-        window.location.href = '/landing.html'; 
+        window.location.href = 'landing.html'; 
     } else {
         // Jika ada sesi, tampilkan konten
         document.body.style.display = 'block';
+        if (typeof window.updateUserUI === 'function') {
+            window.updateUserUI(); // Safe call
+        }
     }
 }
 
-// Global functions for profile menu
+// Global functions for profile menu (Moved outside initApp to ensure global access)
 window.toggleProfileMenu = function(e) {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     const dropdown = document.getElementById('profileDropdown');
     const profile = document.querySelector('.user-profile');
+    
     if (dropdown) {
-        dropdown.classList.toggle('show');
-        if (profile) profile.classList.toggle('active');
+        const isShown = dropdown.classList.contains('show');
+        
+        // Toggle logic
+        if (isShown) {
+            dropdown.classList.remove('show');
+            if (profile) profile.classList.remove('active');
+        } else {
+            dropdown.classList.add('show');
+            if (profile) profile.classList.add('active');
+        }
     }
 };
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('profileDropdown');
+    const profile = document.querySelector('.user-profile');
+    
+    // Check if dropdown is currently shown
+    if (dropdown && dropdown.classList.contains('show')) {
+        // If click is NOT inside dropdown AND NOT inside the profile trigger
+        if (!dropdown.contains(e.target) && (!profile || !profile.contains(e.target))) {
+            dropdown.classList.remove('show');
+            if (profile) profile.classList.remove('active');
+        }
+    }
+});
 
 // Premium Guard Implementation
 async function initPremiumGuard() {
@@ -406,71 +517,41 @@ async function initPremiumGuard() {
         const { data: { user } } = await sb.auth.getUser();
         
         if (user) {
-            // Ambil data terbaru dari tabel profiles untuk memastikan status premium akurat
-            let isPremium = false;
-            
-            // Cek metadata dulu (cepat)
-            if (user.user_metadata && user.user_metadata.plan === 'premium') {
-                isPremium = true;
-                
-                // Cek tanggal expired di metadata
-                if (user.user_metadata.premium_until) {
-                    const expiry = new Date(user.user_metadata.premium_until);
-                    if (new Date() > expiry) {
-                        isPremium = false; // Expired
-                        // Trigger downgrade di background
-                        sb.auth.updateUser({ data: { plan: 'free' } });
-                        sb.from('profiles').update({ is_premium: false, plan: 'free' }).eq('id', user.id);
-                    }
-                }
-            }
-            
-            // Double check ke tabel profiles (sumber kebenaran)
             try {
-                const { data: profile } = await sb.from('profiles').select('is_premium, plan').eq('id', user.id).single();
-                if (profile) {
-                    // Jika di tabel profile bilang premium, maka premium
-                    if (profile.is_premium === true || profile.plan === 'premium') {
-                        isPremium = true;
-                    } else {
-                        isPremium = false;
-                    }
-                }
+                const ok = typeof window.isPremiumActive === 'function' ? await window.isPremiumActive(sb, user.id) : false;
+                if (ok) return;
             } catch (e) {
-                // Ignore error, rely on metadata
+                // ignore
             }
 
             // Jika user BUKAN premium
-            if (!isPremium) {
-                // Tampilkan overlay lock (blokir akses)
-                const overlay = document.createElement('div');
-                overlay.style.cssText = `
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    background: rgba(255, 255, 255, 0.98); z-index: 99999;
-                    display: flex; flex-direction: column; justify-content: center; align-items: center;
-                    text-align: center;
-                `;
-                
-                overlay.innerHTML = `
-                    <div style="padding: 40px; max-width: 500px;">
-                        <i class="fas fa-lock" style="font-size: 64px; color: var(--tt-brown); margin-bottom: 24px; opacity: 0.8;"></i>
-                        <h2 style="color: var(--tt-brown); margin-bottom: 12px; font-size: 28px;">Fitur Premium</h2>
-                        <p style="color: var(--text-light); margin-bottom: 32px; font-size: 16px; line-height: 1.6;">
-                            Maaf, fitur ini khusus untuk pengguna Premium.<br>
-                            Upgrade sekarang untuk membuka akses ke Timeline Sejarah, Komunitas, dan Tugas Eksklusif.
-                        </p>
-                        <div style="display: flex; gap: 16px; justify-content: center;">
-                            <a href="index.html" class="btn-secondary" style="padding: 12px 24px;">Kembali</a>
-                            <a href="premium.html" class="btn-primary" style="padding: 12px 30px; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);">
-                                <i class="fas fa-crown"></i> Upgrade Premium
-                            </a>
-                        </div>
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(255, 255, 255, 0.98); z-index: 99999;
+                display: flex; flex-direction: column; justify-content: center; align-items: center;
+                text-align: center;
+            `;
+            
+            overlay.innerHTML = `
+                <div style="padding: 40px; max-width: 500px;">
+                    <i class="fas fa-lock" style="font-size: 64px; color: var(--tt-brown); margin-bottom: 24px; opacity: 0.8;"></i>
+                    <h2 style="color: var(--tt-brown); margin-bottom: 12px; font-size: 28px;">Fitur Premium</h2>
+                    <p style="color: var(--text-light); margin-bottom: 32px; font-size: 16px; line-height: 1.6;">
+                        Maaf, fitur ini khusus untuk pengguna Premium.<br>
+                        Upgrade sekarang untuk membuka akses ke Timeline Sejarah, Komunitas, dan Tugas Eksklusif.
+                    </p>
+                    <div style="display: flex; gap: 16px; justify-content: center;">
+                        <a href="index.html" class="btn-secondary" style="padding: 12px 24px;">Kembali</a>
+                        <a href="premium.html" class="btn-primary" style="padding: 12px 30px; box-shadow: 0 4px 15px rgba(139, 69, 19, 0.3);">
+                            <i class="fas fa-crown"></i> Upgrade Premium
+                        </a>
                     </div>
-                `;
-                
-                document.body.appendChild(overlay);
-                document.body.style.overflow = 'hidden'; // Disable scroll
-            }
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            document.body.style.overflow = 'hidden';
         }
     }
 }
@@ -502,3 +583,82 @@ document.addEventListener('click', function(e) {
         }
     }
 });
+
+async function initPremiumRealtime() {
+    try {
+        const sb = await getSupabaseClient();
+        const { data: { session } } = await sb.auth.getSession();
+        if (!session || !session.user) return;
+        const userId = session.user.id;
+
+        const ch = sb
+            .channel('premium_' + userId)
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'premium_purchases', filter: `user_id=eq.${userId}` }, async (payload) => {
+                const newRow = payload.new || {};
+                const status = String(newRow.status || '').toLowerCase();
+                if (['paid', 'confirmed', 'active'].includes(status)) {
+                    const ok = await isPremiumActive(sb, userId);
+                    if (!ok) return;
+                    showPremiumActivatedModal();
+                    const params = new URLSearchParams(window.location.search || '');
+                    const ret = params.get('return');
+                    setTimeout(() => {
+                        if (ret) {
+                            const url = new URL(ret, window.location.origin);
+                            url.searchParams.set('activated', '1');
+                            window.location.href = url.toString();
+                        } else {
+                            const u = new URL(window.location.href);
+                            u.searchParams.set('activated', '1');
+                            window.location.href = u.toString();
+                        }
+                    }, 1200);
+                }
+            })
+            .subscribe();
+    } catch (e) {
+        // ignore
+    }
+}
+
+function showPremiumActivatedModal() {
+    const ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100000;';
+    ov.innerHTML = '<div style="background:#fff;border-radius:16px;padding:28px 24px;max-width:420px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,.25)"><div style="width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#FFD700,#B8860B);display:flex;align-items:center;justify-content:center;margin:0 auto 14px;"><i class="fas fa-crown" style="color:#2c1a15;font-size:28px;"></i></div><h3 style="margin:0 0 6px 0;">Selamat, Kamu Premium!</h3><p style="margin:0 0 12px 0;color:#666">Akses fitur premium telah aktif.</p><button id="premOkBtn" class="btn-primary" style="padding:10px 20px;">Oke</button></div>';
+    document.body.appendChild(ov);
+    const btn = ov.querySelector('#premOkBtn');
+    if (btn) btn.addEventListener('click', () => ov.remove());
+}
+
+function showActivatedToastIfNeeded() {
+    try {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('activated') === '1') {
+            const toast = document.createElement('div');
+            toast.style.cssText = 'position:fixed;right:24px;top:24px;z-index:100001;background:#2c1a15;color:#fff;padding:12px 16px;border-radius:12px;box-shadow:0 10px 20px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px;';
+            toast.innerHTML = '<i class="fas fa-crown" style="color:#FFD700"></i><span>Kamu sekarang Premium</span>';
+            document.body.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 2500);
+            url.searchParams.delete('activated');
+            history.replaceState(null, '', url.toString());
+        }
+    } catch (e) {
+        // ignore
+    }
+}
+
+function updateNotificationBadge() {
+    // Simulasi atau fetch real count
+    const count = 0; // Default 0
+    document.querySelectorAll('.badge').forEach(el => {
+        if (count > 0) {
+            el.textContent = count;
+            el.style.display = 'flex';
+        } else {
+            el.style.display = 'none';
+        }
+    });
+}
+
+// Panggil di akhir boot atau initApp
+window.updateNotificationBadge = updateNotificationBadge;

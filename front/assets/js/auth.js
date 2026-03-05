@@ -3,7 +3,7 @@ async function handleLoginSubmit(loginForm) {
     const passwordInput = loginForm ? loginForm.querySelector('#loginPassword') : null;
 
     const identifierRaw = identifierInput ? String(identifierInput.value || '').trim() : '';
-    const identifier = identifierRaw.toLowerCase();
+    const identifier = identifierRaw; // Jangan toLowerCase dulu jika username case sensitive, tapi email biasanya insensitive
     const password = passwordInput ? String(passwordInput.value || '').trim() : '';
 
     if (!identifier || !password) {
@@ -11,6 +11,20 @@ async function handleLoginSubmit(loginForm) {
     }
 
     const sb = await getSupabaseClient();
+    
+    // --- FORCE CLEANUP BEFORE LOGIN ---
+    // Pastikan tidak ada sisa token lama yang mengganggu
+    // Hanya lakukan jika kita yakin user ingin login baru
+    try {
+        const { data: { session } } = await sb.auth.getSession();
+        if (session) {
+            await sb.auth.signOut();
+            localStorage.clear(); // Extreme cleanup
+        }
+    } catch (e) {
+        localStorage.clear();
+    }
+    // ----------------------------------
 
     const isEmail = identifier.includes('@');
     let email = identifier;

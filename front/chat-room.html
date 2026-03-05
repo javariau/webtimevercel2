@@ -141,11 +141,25 @@
                     </div>
 
                     <!-- Input Area -->
-                    <form id="chatForm" style="padding: 16px; background: white; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center;">
+                    <form id="chatForm" style="padding: 16px; background: white; border-top: 1px solid var(--border); display: flex; gap: 10px; align-items: center; position: relative;">
+                        <!-- Sticker & Image Buttons -->
+                        <button type="button" id="btnSticker" style="background: none; border: none; color: var(--text-light); font-size: 20px; cursor: pointer; padding: 5px;">
+                            <i class="fas fa-smile"></i>
+                        </button>
+                        <button type="button" id="btnImage" style="background: none; border: none; color: var(--text-light); font-size: 20px; cursor: pointer; padding: 5px;">
+                            <i class="fas fa-image"></i>
+                        </button>
+                        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+
                         <input type="text" id="chatInput" placeholder="Ketik pesan..." style="flex: 1; padding: 12px 16px; border-radius: 24px; border: 1px solid var(--border); outline: none; transition: border-color 0.2s;" autocomplete="off">
                         <button type="submit" style="width: 44px; height: 44px; border-radius: 50%; background: var(--primary); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.1s;">
                             <i class="fas fa-paper-plane"></i>
                         </button>
+
+                        <!-- Sticker Picker (Hidden) -->
+                        <div id="stickerPicker" style="display: none; position: absolute; bottom: 80px; left: 10px; background: white; border: 1px solid var(--border); border-radius: 12px; padding: 10px; width: 250px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); z-index: 100; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                            <!-- Stickers will be injected here -->
+                        </div>
                     </form>
                 </div>
             </div>

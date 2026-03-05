@@ -7,6 +7,9 @@ const envPathVnv = path.resolve(__dirname, '.vnv');
 const envPath = fs.existsSync(envPathEnv) ? envPathEnv : (fs.existsSync(envPathRootEnv) ? envPathRootEnv : envPathVnv);
 require('dotenv').config({ path: envPath });
 const express = require('express');
+const helmet = require('helmet');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 9090;
@@ -18,12 +21,29 @@ const SUPABASE_KEY = SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY;
 const frontDir = path.resolve(__dirname, '..', 'front');
 const rootDir = path.resolve(__dirname, '..');
 
-app.use(express.json());
+app.use(helmet({ contentSecurityPolicy: false }));
+app.use(cors());
+app.use(express.json({ limit: '10kb' }));
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => String(req.path || '') === '/supabase-public-config',
+  handler: (_req, res) => res.status(429).json({ error: 'Terlalu banyak request, coba lagi nanti.' }),
+});
+app.use('/api/', limiter);
+
 app.use(express.static(frontDir, { index: false }));
 
 function hasSupabaseConfig() {
   return Boolean(SUPABASE_URL && SUPABASE_KEY);
 }
+
+app.get('/favicon.ico', (_req, res) => {
+  res.status(204).end();
+});
 
 app.get('/api/supabase-public-config', (_req, res) => {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {

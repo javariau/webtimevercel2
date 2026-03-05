@@ -25,6 +25,34 @@
                         <i class="fas fa-home"></i>
                         <span>Beranda</span>
                     </a>
+                    <a href="materi.html" class="nav-item active">
+                        <i class="fas fa-book"></i>
+                        <span>Materi Pembelajaran</span>
+                    </a>
+                    <a href="quizzes.html" class="nav-item">
+                        <i class="fas fa-circle-question"></i>
+                        <span>Kuis</span>
+                    </a>
+                    <a href="community.html" class="nav-item">
+                        <i class="fas fa-comments"></i>
+                        <span>Komunitas</span>
+                    </a>
+                    <a href="tasks.html" class="nav-item">
+                        <i class="fas fa-list-check"></i>
+                        <span>Tugas</span>
+                    </a>
+                    <a href="premium.html" class="nav-item">
+                        <i class="fas fa-crown"></i>
+                        <span>Premium</span>
+                    </a>
+                    <a href="shop.html" class="nav-item">
+                        <i class="fas fa-store"></i>
+                        <span>Toko</span>
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Eksplorasi</div>
                     <a href="timeline.html" class="nav-item">
                         <i class="fas fa-stream"></i>
                         <span>Timeline Sejarah</span>
@@ -33,12 +61,8 @@
                         <i class="fas fa-users"></i>
                         <span>Tokoh &amp; Kisah</span>
                     </a>
-                    <a href="materi.html" class="nav-item active">
-                        <i class="fas fa-book"></i>
-                        <span>Materi Pembelajaran</span>
-                    </a>
                 </div>
-
+                
                 <div class="nav-section">
                     <div class="nav-section-title">Lainnya</div>
                     <a href="notification.html" class="nav-item">
@@ -57,14 +81,22 @@
             </nav>
 
             <div class="sidebar-footer">
-                <a class="user-profile" href="profile.html" style="text-decoration: none; color: inherit;">
-                    <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
-                    <div class="user-info">
-                        <div class="user-name">...</div>
-                        <div class="user-role">Pelajar Aktif</div>
+                <div class="profile-container" style="position:relative;">
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="profile-edit.html" class="dropdown-item"><i class="fas fa-user-pen"></i> Edit Profil</a>
+                        <a href="login.html" class="dropdown-item"><i class="fas fa-right-from-bracket"></i> Ganti Akun</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="#" onclick="handleLogout(event)" class="dropdown-item" style="color:#e53935;"><i class="fas fa-power-off"></i> Logout</a>
                     </div>
-                    <i class="fas fa-chevron-right" style="color: var(--text-light); font-size: 12px;"></i>
-                </a>
+                    <div class="user-profile" onclick="toggleProfileMenu(event)">
+                        <img src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100" alt="User" class="user-avatar">
+                        <div class="user-info">
+                            <div class="user-name">...</div>
+                            <div class="user-role">Pelajar Aktif</div>
+                        </div>
+                        <i class="fas fa-chevron-up" style="color: var(--text-light); font-size: 12px;"></i>
+                    </div>
+                </div>
             </div>
         </aside>
 
@@ -96,17 +128,17 @@
             <div class="content-wrapper">
                 <div class="content-detail">
                     <div class="content-main">
-                        <img src="https://images.unsplash.com/photo-1564507592333-c60657eea523?w=800" alt="Sejarah" class="content-header-image">
+                        <img id="contentImage" src="assets/img/placeholder.jpg" alt="Materi" class="content-header-image">
 
                         <div class="content-body">
                             <div class="content-meta">
                                 <div class="content-meta-item">
                                     <i class="fas fa-calendar"></i>
-                                    <span>17 Agustus 1945</span>
+                                    <span id="contentMetaDate">-</span>
                                 </div>
                                 <div class="content-meta-item">
                                     <i class="fas fa-clock"></i>
-                                    <span>15 menit baca</span>
+                                    <span id="contentMetaReadTime">5 menit baca</span>
                                 </div>
                                 <div class="content-meta-item">
                                     <i class="fas fa-signal"></i>
@@ -114,21 +146,44 @@
                                 </div>
                             </div>
 
-                            <h1 class="content-title">Proklamasi Kemerdekaan Indonesia</h1>
+                            <h1 id="contentTitle" class="content-title">Materi Pembelajaran</h1>
 
-                            <div class="content-text">
-                                <p>Proklamasi kemerdekaan Indonesia terjadi pada tanggal 17 Agustus 1945, dua hari setelah Kaisar Jepang Hirohito menyatakan menyerah tanpa syarat kepada Sekutu. Peristiwa bersejarah ini berlangsung di Jalan Pegangsaan Timur No. 56, Jakarta Pusat.</p>
+                            <!-- Music Player Floating Button -->
+                            <div id="musicPlayerContainer" style="position: fixed; bottom: 30px; right: 30px; z-index: 9999; display: flex; align-items: center; gap: 10px; background: rgba(255, 255, 255, 0.95); padding: 10px 16px; border-radius: 50px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.2); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                                <div id="musicControls" style="display: none; align-items: center; gap: 12px; margin-right: 5px;">
+                                    <button id="prevTrackBtn" style="background: none; border: none; cursor: pointer; color: var(--text-light); font-size: 14px;"><i class="fas fa-step-backward"></i></button>
+                                    <div style="display: flex; flex-direction: column; min-width: 100px;">
+                                        <span id="currentTrackName" style="font-size: 12px; font-weight: 600; color: var(--primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 120px;">Memuat...</span>
+                                        <span id="musicStatus" style="font-size: 10px; color: var(--text-light);">Dipaus</span>
+                                    </div>
+                                    <button id="nextTrackBtn" style="background: none; border: none; cursor: pointer; color: var(--text-light); font-size: 14px;"><i class="fas fa-step-forward"></i></button>
+                                    <button id="searchMusicBtn" title="Cari musik" style="background: none; border: none; cursor: pointer; color: var(--text-light); font-size: 14px;"><i class="fas fa-search"></i></button>
+                                </div>
+                                
+                                <button id="toggleMusicBtn" style="background: var(--primary); color: white; border: none; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 12px rgba(93, 64, 55, 0.3); transition: transform 0.2s;">
+                                    <i class="fas fa-music"></i>
+                                </button>
+                                
+                                <audio id="bgmAudio" loop style="display: none;"></audio>
+                            </div>
+                            
+                            <div id="musicSearchPanel" style="display:none; position: fixed; right: 30px; bottom: 92px; width: 320px; max-height: 360px; overflow: auto; z-index: 10000; background: #fff; border-radius: 14px; box-shadow: 0 10px 32px rgba(0,0,0,.2); border: 1px solid var(--border);">
+                                <div style="padding: 10px;">
+                                    <input id="musicSearchInput" type="text" placeholder="Cari musik YouTube (mis. lofi, jazz)" style="width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border);">
+                                </div>
+                                <div id="musicSearchResults" style="padding: 6px 10px 12px 10px;"></div>
+                            </div>
 
-                                <p>Soekarno dan Mohammad Hatta memproklamasikan kemerdekaan bangsa Indonesia atas nama bangsa Indonesia. Proklamasi ini merupakan puncak perjuangan bangsa Indonesia yang telah berlangsung selama berabad-abad melawan penjajahan.</p>
+                            <!-- Video Section (Hidden by default) -->
+                            <div id="contentVideoContainer" style="display: none; margin: 25px 0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+                                <iframe id="contentVideoFrame" width="100%" height="315" src="" title="Video Pembelajaran" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="display: block;"></iframe>
+                                <div style="padding: 10px; background: #f8f9fa; font-size: 13px; color: var(--text-light); text-align: center;">
+                                    <i class="fas fa-play-circle" style="color: red; margin-right: 5px;"></i> Video Pembelajaran
+                                </div>
+                            </div>
 
-                                <h3 style="margin: 30px 0 15px; color: var(--text);">Latar Belakang</h3>
-                                <p>Setelah Jepang menyerah kepada Sekutu pada 15 Agustus 1945, golongan muda mendesak agar kemerdekaan segera diproklamasikan. Soekarno dan Hatta sempat dibawa ke Rengasdengklok agar tidak terpengaruh Jepang.</p>
-
-                                <h3 style="margin: 30px 0 15px; color: var(--text);">Penyusunan Naskah</h3>
-                                <p>Naskah proklamasi ditulis oleh Soekarno, Hatta, dan Achmad Soebardjo, dan diketik oleh Sayuti Melik. Pembacaan proklamasi dihadiri oleh beberapa tokoh penting dan diumumkan kepada seluruh rakyat Indonesia.</p>
-
-                                <h3 style="margin: 30px 0 15px; color: var(--text);">Dampak dan Signifikansi</h3>
-                                <p>Proklamasi ini menjadi tonggak sejarah bangsa Indonesia yang diabadikan setiap tahun sebagai Hari Kemerdekaan. Peristiwa ini mengubah sejarah perjuangan bangsa Indonesia dari masa penjajahan menuju era kemerdekaan.</p>
+                            <div id="contentBody" class="content-text">
+                                <p>Sedang memuat materi...</p>
                             </div>
 
                             <div style="margin-top: 40px; padding: 30px; background: var(--bg); border-radius: 16px;">
@@ -138,10 +193,7 @@
                                 </h3>
                                 <div style="display: flex; flex-direction: column; gap: 15px;">
                                     <div style="padding: 15px; background: white; border-radius: 10px; cursor: pointer; border: 2px solid transparent; transition: all 0.3s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='transparent'">
-                                        <strong>Siapa yang mengetik naskah proklamasi?</strong>
-                                    </div>
-                                    <div style="padding: 15px; background: white; border-radius: 10px; cursor: pointer; border: 2px solid transparent; transition: all 0.3s;" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='transparent'">
-                                        <strong>Kapan tepatnya Jepang menyerah kepada Sekutu?</strong>
+                                        <strong>Mulai Kuis Materi Ini</strong>
                                     </div>
                                 </div>
                             </div>
