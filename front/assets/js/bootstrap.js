@@ -1,10 +1,12 @@
 function initApp() {
+    // 1. Inisialisasi Logo Aplikasi di Sidebar
     const logoImgSrc = 'assets/img/Frame 1000001789.png';
     document.querySelectorAll('.sidebar-header .logo').forEach((logo) => {
         if (!logo) return;
         logo.innerHTML = `<img src="${logoImgSrc}" alt="Time Track" width="180" height="60" style="object-fit: contain;">`;
     });
 
+    // 2. Fungsi Helper untuk Toggle Visibility Password
     const togglePassword = (input, btn) => {
         if (!input || !btn) return;
         const icon = btn.querySelector('i');
@@ -17,6 +19,7 @@ function initApp() {
         btn.setAttribute('aria-label', isHidden ? 'Sembunyikan password' : 'Tampilkan password');
     };
 
+    // 3. Fungsi Helper untuk Menampilkan Error Login/Register
     const showAuthError = (msg) => {
         const message = String(msg || '').trim();
         if (!message) return;
@@ -27,6 +30,7 @@ function initApp() {
         errEl.style.display = 'block';
     };
 
+    // 4. Fungsi Helper untuk Membersihkan Error
     const clearAuthError = () => {
         const errEl = document.getElementById('loginError') || document.getElementById('registerError');
         if (!errEl) return;
@@ -35,9 +39,11 @@ function initApp() {
         errEl.textContent = '';
     };
 
+    // 5. Logika Halaman Login
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         try {
+            // Cek fitur "Ingat Saya" (Remember Me)
             const remembered = localStorage.getItem('tt_remember_identifier');
             const identifierInput = document.getElementById('loginIdentifier');
             const rememberMe = document.getElementById('rememberMe');
@@ -47,15 +53,17 @@ function initApp() {
                 if (rememberMe) rememberMe.checked = true;
             }
         } catch (e) {
-            // ignore
+            // abaikan error akses localStorage
         }
 
+        // Setup toggle password login
         const loginPasswordInput = document.getElementById('loginPassword');
         const toggleLoginPasswordBtn = document.getElementById('toggleLoginPasswordBtn');
         if (loginPasswordInput && toggleLoginPasswordBtn) {
             toggleLoginPasswordBtn.addEventListener('click', () => togglePassword(loginPasswordInput, toggleLoginPasswordBtn));
         }
 
+        // Handle Submit Login
         loginForm.addEventListener('submit', async function (e) {
             e.preventDefault();
             const errEl = document.getElementById('loginError');
@@ -65,6 +73,7 @@ function initApp() {
                 errEl.textContent = '';
             }
             try {
+                // Simpan username jika "Ingat Saya" dicentang
                 try {
                     const rememberMe = document.getElementById('rememberMe');
                     const identifierInput = document.getElementById('loginIdentifier');
@@ -76,11 +85,13 @@ function initApp() {
                         }
                     }
                 } catch (e) {
-                    // ignore
+                    // abaikan
                 }
+                
+                // Proses Login ke Supabase
                 const res = await handleLoginSubmit(loginForm);
                 if (res && res.ok) {
-                    window.location.href = 'index.html';
+                    window.location.href = 'index.html'; // Redirect ke dashboard
                     return;
                 }
 
@@ -101,6 +112,7 @@ function initApp() {
         });
     }
 
+    // 6. Setup Tombol Login Sosial (Google)
     const googleBtns = [
         document.getElementById('googleLoginBtn'),
         document.getElementById('googleRegisterBtn'),
@@ -118,6 +130,7 @@ function initApp() {
         });
     });
 
+    // 7. Setup Tombol Login Sosial (Facebook)
     const facebookBtns = [
         document.getElementById('facebookLoginBtn'),
         document.getElementById('facebookRegisterBtn'),
@@ -135,20 +148,24 @@ function initApp() {
         });
     });
 
+    // 8. Logika Halaman Register
     const registerForm = document.getElementById('registerForm');
     if (registerForm) {
+        // Toggle password register
         const regPass = document.getElementById('registerPassword');
         const regPassBtn = document.getElementById('toggleRegisterPasswordBtn');
         if (regPass && regPassBtn) {
             regPassBtn.addEventListener('click', () => togglePassword(regPass, regPassBtn));
         }
 
+        // Toggle konfirmasi password
         const regPass2 = document.getElementById('registerPasswordConfirm');
         const regPass2Btn = document.getElementById('toggleRegisterPasswordConfirmBtn');
         if (regPass2 && regPass2Btn) {
             regPass2Btn.addEventListener('click', () => togglePassword(regPass2, regPass2Btn));
         }
 
+        // Handle Submit Register
         registerForm.addEventListener('submit', async function (e) {
             e.preventDefault();
             try {
@@ -159,6 +176,7 @@ function initApp() {
         });
     }
 
+    // 9. Logika Lupa Password
     const forgotForm = document.getElementById('forgotPasswordForm');
     if (forgotForm) {
         forgotForm.addEventListener('submit', async (e) => {
@@ -173,6 +191,7 @@ function initApp() {
         });
     }
 
+    // 10. Logika Reset Password
     const resetForm = document.getElementById('resetPasswordForm');
     if (resetForm) {
         if (typeof window.ensureRecoverySessionFromUrl === 'function') {
@@ -199,6 +218,7 @@ function initApp() {
         });
     }
 
+    // 11. UI Interaction: Pilihan Gender
     document.querySelectorAll('.gender-option').forEach(option => {
         option.addEventListener('click', function () {
             const parent = this.parentElement;
@@ -211,6 +231,7 @@ function initApp() {
         });
     });
 
+    // 12. UI Interaction: Pills Kategori
     document.querySelectorAll('.category-pills .pill').forEach(pill => {
         pill.addEventListener('click', function () {
             const parent = this.parentElement;
@@ -219,6 +240,7 @@ function initApp() {
         });
     });
 
+    // 13. Fitur Pencarian di Header
     const headerSearchInput = document.querySelector('.top-header .search-bar input');
     if (headerSearchInput) {
         headerSearchInput.addEventListener('keydown', function (e) {
@@ -233,6 +255,7 @@ function initApp() {
         });
     }
 
+    // 14. Mobile Menu: Tutup Sidebar saat klik di luar
     document.addEventListener('click', function (e) {
         const sidebar = document.getElementById('sidebar');
         const menuBtn = document.querySelector('.mobile-menu-btn');
@@ -249,10 +272,18 @@ function initApp() {
         }
     });
 
-    initMateriPage();
-    initTimelinePage();
+    // 15. Inisialisasi Halaman Spesifik
+    if (typeof window.initMateriPageV2 === 'function') {
+        console.log('Calling initMateriPageV2 from bootstrap...');
+        window.initMateriPageV2();
+    } else if (typeof initMateriPage === 'function') {
+        console.warn('Fallback to initMateriPage (Old Version?)');
+        initMateriPage();
+    }
     
-    // Auto-detect detail page
+    if (typeof initTimelinePage === 'function') initTimelinePage();
+    
+    // Deteksi otomatis halaman detail materi
     if (window.location.pathname.includes('content-detail.html')) {
         if (typeof window.initMateriDetailPage === 'function') {
             window.initMateriDetailPage();
@@ -264,52 +295,81 @@ function initApp() {
     }
 
 function updateDashboardStats(user) {
-    // Default 0 jika tidak ada data
-    const stats = {
-        materi: 0,
-        badge: 0,
-        xp: 0
-    };
-    
-    // Fetch real data from DB if needed
-    // Untuk saat ini kita pakai data dari metadata profile user jika ada
-    if (user && user.user_metadata) {
-        stats.xp = user.user_metadata.xp || 0;
-        // badge dan materi bisa diambil dari tabel terkait nanti
-    }
-
-    // Update UI
-    const statValues = document.querySelectorAll('.hero-stats .stat-value');
-    if (statValues.length >= 3) {
-        statValues[0].textContent = stats.materi;
-        statValues[1].textContent = stats.badge;
-        statValues[2].textContent = stats.xp;
-    }
+    // Fungsi ini dinonaktifkan untuk mencegah overwrite data dari session metadata (yang sering stale/cache).
+    // Dashboard sepenuhnya dihandle oleh window.updateUserUI() yang mengambil data fresh dari database.
+    return;
 }
 
-// Panggil dalam updateUserUI
+    // 16. Fungsi Utama Update Data User di UI (Dipanggil saat boot)
 window.updateUserUI = async () => {
     try {
         const sb = await getSupabaseClient();
         const { data: { session } } = await sb.auth.getSession();
+        
         if (!session || !session.user) return;
         
         const user = session.user;
-        updateDashboardStats(user); // Update stats here
         
-        // Also get fresh profile data for XP
-        const { data: profile } = await sb.from('profiles').select('xp').eq('id', user.id).single();
-        if (profile) {
-            // Update Dashboard Stats
+        // Ambil data profil terbaru dari Database (Paksa fetch dengan timestamp anti-cache)
+        try {
+            // Kita ambil xp, points, badges, dan materials_read_count yang sudah ditambahkan
+            // Tambahkan filter dummy agar URL unik dan tidak dicache browser
+            const ts = new Date().getTime();
+            const { data: profile, error } = await sb
+                .from('profiles')
+                .select('*')  
+                .eq('id', user.id)
+                .neq('username', 'dummy_' + ts) // Trik anti-cache
+                .single();
+            
+            console.log('Data Profil Realtime DB:', profile);
+                
+            if (profile) {
+                // Statistik Dashboard (Halaman Index)
+                const statValues = document.querySelectorAll('.hero-stats .stat-value');
+                if (statValues.length >= 3) {
+                    // Paksa update tampilan dari Database (Source of Truth)
+                    // GUNAKAN 'points' SAJA (Karena kolom 'xp' sudah dihapus dari DB)
+                    // Ambil points, jika null/undefined set ke 0
+                    const realXP = (profile.points !== undefined && profile.points !== null) ? Number(profile.points) : 0;
+                    
+                    const realMateri = profile.materials_read_count || 0;
+                    const realBadge = typeof profile.badges === 'number' ? profile.badges : (Array.isArray(profile.badges) ? profile.badges.length : 0);
+
+                    statValues[0].textContent = realMateri; 
+                    statValues[1].textContent = realBadge;
+                    statValues[2].textContent = realXP; 
+                }
+
+                // Update XP di Header (Semua Halaman)
+                const headerXp = document.getElementById('headerUserXp');
+                if (headerXp) {
+                    const realXP = (profile.points !== undefined && profile.points !== null) ? Number(profile.points) : 0;
+                    headerXp.textContent = `${realXP} XP`;
+                }
+
+                // Update Info Sidebar
+                if (profile.full_name) {
+                    const sidebarUserName = document.querySelector('.sidebar .user-name');
+                    if (sidebarUserName) sidebarUserName.textContent = profile.full_name;
+                }
+            } else {
+                // Jika profil tidak ditemukan atau error, kosongkan dashboard sesuai request
+                const statValues = document.querySelectorAll('.hero-stats .stat-value');
+                if (statValues.length >= 3) {
+                    statValues[0].textContent = '-';
+                    statValues[1].textContent = '-';
+                    statValues[2].textContent = '-';
+                }
+            }
+        } catch (err) { 
+            console.error('Gagal mengambil profil terbaru:', err);
+            // Kosongkan dashboard jika error fatal
             const statValues = document.querySelectorAll('.hero-stats .stat-value');
             if (statValues.length >= 3) {
-                statValues[2].textContent = profile.xp || 0;
-            }
-            
-            // Update Header XP (jika ada)
-            const headerXp = document.getElementById('headerUserXp');
-            if (headerXp) {
-                headerXp.textContent = profile.xp || 0;
+                statValues[0].textContent = '-';
+                statValues[1].textContent = '-';
+                statValues[2].textContent = '-';
             }
         }
         
@@ -322,12 +382,13 @@ window.updateUserUI = async () => {
                 premiumOk = false;
             }
 
-            // Update sidebar profile
+            // Update nama user di sidebar
             const sidebarUserName = document.querySelector('.sidebar .user-name');
             if (sidebarUserName) {
                 sidebarUserName.textContent = displayName;
             }
 
+            // Update role user di sidebar
             const sidebarUserRole = document.querySelector('.sidebar .user-role');
             if (sidebarUserRole) {
                 let baseRole = 'Pelajar Aktif';
@@ -336,7 +397,7 @@ window.updateUserUI = async () => {
                 sidebarUserRole.textContent = premiumOk ? `Premium • ${baseRole}` : baseRole;
             }
 
-            // Update sidebar avatar
+            // Update avatar sidebar
             if (metadata.avatar_url) {
                 const sidebarAvatars = document.querySelectorAll('.sidebar .user-avatar');
                 sidebarAvatars.forEach(img => {
@@ -344,13 +405,13 @@ window.updateUserUI = async () => {
                 });
             }
 
-            // Update welcome message if exists
+            // Update pesan selamat datang jika elemennya ada
             const welcomeHeader = document.getElementById('welcomeUserHeader');
             if (welcomeHeader) {
                 const firstName = displayName.split(' ')[0];
                 welcomeHeader.textContent = `Selamat Datang, ${firstName}! 👋`;
             } else {
-                // Fallback for pages without the specific ID
+                // Fallback untuk halaman tanpa ID spesifik
                 const h1s = document.querySelectorAll('.hero-content h1');
                 h1s.forEach(h1 => {
                     if (h1.textContent.includes('Selamat Datang')) {
@@ -360,17 +421,19 @@ window.updateUserUI = async () => {
                 });
             }
             
-            // Update profile info in dashboard if exists
+            // Update info profil di dashboard jika ada
             const dashboardWelcome = document.querySelector('#dashboardPage .hero-content h1');
             if (dashboardWelcome && dashboardWelcome.textContent.includes('Selamat Datang')) {
                  const firstName = displayName.split(' ')[0];
                  dashboardWelcome.textContent = `Selamat Datang, ${firstName}! 👋`;
             }
 
+            // Update status menu Premium di navigasi
             document.querySelectorAll('a.nav-item[href="premium.html"] span, a.mobile-nav-item[href="premium.html"] span').forEach((el) => {
                 el.textContent = premiumOk ? 'Premium (Aktif)' : 'Premium';
             });
 
+            // Logika khusus halaman Premium
             if (String(window.location.pathname || '').toLowerCase().endsWith('premium.html')) {
                 const hero = document.querySelector('.hero-section');
                 if (hero && premiumOk && !document.getElementById('ttPremiumActiveBanner')) {
@@ -393,14 +456,14 @@ window.updateUserUI = async () => {
                 }
             }
 
-            // Check Premium Expiry (Auto-Downgrade)
+            // Cek Masa Berlaku Premium (Auto-Downgrade)
             if (metadata.plan === 'premium' && metadata.premium_until) {
                 const today = new Date();
                 const expiryDate = new Date(metadata.premium_until);
                 
                 if (today > expiryDate) {
-                    // Expired! Downgrade now
-                    console.log('Premium expired. Downgrading to free...');
+                    // Sudah kedaluwarsa! Downgrade sekarang
+                    console.log('Premium berakhir. Menurunkan paket ke gratis...');
                     
                     const { error } = await sb.auth.updateUser({
                         data: { plan: 'free', premium_until: null }
@@ -414,22 +477,24 @@ window.updateUserUI = async () => {
             }
 
         } catch (e) {
-            console.error('Error updating user UI:', e);
+            console.error('Error saat update UI user:', e);
         }
     };
 
     updateUserUI();
     requireAuthIfNeeded();
     initPremiumGuard();
+    // Init Premium Realtime (Purchases)
     initPremiumRealtime();
+
     showActivatedToastIfNeeded();
 }
 
-// Global Auth Guard
+// Global Auth Guard (Cek Login)
 async function requireAuthIfNeeded() {
     const path = window.location.pathname.toLowerCase();
     
-    // Halaman yang boleh diakses tanpa login
+    // Halaman yang boleh diakses tanpa login (Publik)
     const publicPages = [
         'login.html', 
         'register.html', 
@@ -465,12 +530,12 @@ async function requireAuthIfNeeded() {
         // Jika ada sesi, tampilkan konten
         document.body.style.display = 'block';
         if (typeof window.updateUserUI === 'function') {
-            window.updateUserUI(); // Safe call
+            window.updateUserUI(); // Panggil aman
         }
     }
 }
 
-// Global functions for profile menu (Moved outside initApp to ensure global access)
+// Fungsi global untuk menu profil (Dipindahkan keluar initApp agar bisa diakses global)
 window.toggleProfileMenu = function(e) {
     if (e) e.stopPropagation();
     const dropdown = document.getElementById('profileDropdown');
@@ -479,7 +544,7 @@ window.toggleProfileMenu = function(e) {
     if (dropdown) {
         const isShown = dropdown.classList.contains('show');
         
-        // Toggle logic
+        // Logika Toggle
         if (isShown) {
             dropdown.classList.remove('show');
             if (profile) profile.classList.remove('active');
@@ -490,14 +555,14 @@ window.toggleProfileMenu = function(e) {
     }
 };
 
-// Close dropdown when clicking outside
+// Tutup dropdown saat klik di luar
 document.addEventListener('click', function(e) {
     const dropdown = document.getElementById('profileDropdown');
     const profile = document.querySelector('.user-profile');
     
-    // Check if dropdown is currently shown
+    // Cek jika dropdown sedang terbuka
     if (dropdown && dropdown.classList.contains('show')) {
-        // If click is NOT inside dropdown AND NOT inside the profile trigger
+        // Jika klik BUKAN di dalam dropdown DAN BUKAN di trigger profil
         if (!dropdown.contains(e.target) && (!profile || !profile.contains(e.target))) {
             dropdown.classList.remove('show');
             if (profile) profile.classList.remove('active');
@@ -505,7 +570,7 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Premium Guard Implementation
+// Implementasi Penjaga Halaman Premium
 async function initPremiumGuard() {
     const path = window.location.pathname.toLowerCase();
     
@@ -521,10 +586,10 @@ async function initPremiumGuard() {
                 const ok = typeof window.isPremiumActive === 'function' ? await window.isPremiumActive(sb, user.id) : false;
                 if (ok) return;
             } catch (e) {
-                // ignore
+                // abaikan
             }
 
-            // Jika user BUKAN premium
+            // Jika user BUKAN premium, tampilkan overlay blokir
             const overlay = document.createElement('div');
             overlay.style.cssText = `
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -563,7 +628,7 @@ window.handleLogout = async function(e) {
     try {
         const sb = await getSupabaseClient();
         await sb.auth.signOut();
-        localStorage.clear(); // Clear all local data
+        localStorage.clear(); // Bersihkan semua data lokal
         window.location.href = 'login.html';
     } catch (err) {
         console.error('Logout error:', err);
@@ -571,7 +636,7 @@ window.handleLogout = async function(e) {
     }
 };
 
-// Close dropdown when clicking outside
+// Tutup dropdown saat klik di luar (Duplikat untuk keamanan)
 document.addEventListener('click', function(e) {
     const dropdown = document.getElementById('profileDropdown');
     const profile = document.querySelector('.user-profile');
@@ -617,7 +682,7 @@ async function initPremiumRealtime() {
             })
             .subscribe();
     } catch (e) {
-        // ignore
+        // abaikan
     }
 }
 
@@ -643,7 +708,7 @@ function showActivatedToastIfNeeded() {
             history.replaceState(null, '', url.toString());
         }
     } catch (e) {
-        // ignore
+        // abaikan
     }
 }
 

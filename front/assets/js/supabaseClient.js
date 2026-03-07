@@ -20,22 +20,19 @@ function loadSupabaseSdk() {
 async function getSupabasePublicConfig() {
     if (supabasePublicConfig) return supabasePublicConfig;
 
-    // 1. Coba ambil dari window.TT_PUBLIC_CONFIG (Local Fallback)
-    if (window.TT_PUBLIC_CONFIG && window.TT_PUBLIC_CONFIG.SUPABASE_URL && window.TT_PUBLIC_CONFIG.SUPABASE_ANON_KEY) {
-        supabasePublicConfig = {
-            url: window.TT_PUBLIC_CONFIG.SUPABASE_URL,
-            anonKey: window.TT_PUBLIC_CONFIG.SUPABASE_ANON_KEY
-        };
-        return supabasePublicConfig;
-    }
-
-    // 2. Coba ambil dari Backend API (jika ada)
+    // 1. Coba ambil dari Backend API (jika ada) - Prioritas Utama
     try {
         const res = await fetch('/api/supabase-public-config', { cache: 'no-store' });
         if (res.ok) {
             const cfg = await res.json();
             if (cfg && cfg.url && cfg.anonKey) {
-                supabasePublicConfig = { url: cfg.url, anonKey: cfg.anonKey };
+                supabasePublicConfig = { 
+                    url: cfg.url, 
+                    anonKey: cfg.anonKey,
+                    ytApiKey: cfg.ytApiKey, // Tambahkan YT API Key
+                    midtransClientKey: cfg.midtransClientKey, // Tambahkan Midtrans Client Key
+                    midtransIsProduction: cfg.midtransIsProduction // Tambahkan Mode Midtrans
+                };
                 return supabasePublicConfig;
             }
         }
@@ -43,11 +40,17 @@ async function getSupabasePublicConfig() {
         console.warn('Backend config fetch failed, checking local fallback...');
     }
 
-    // 3. Fallback Terakhir (Hardcoded untuk Development - JANGAN DIGUNAKAN DI PRODUCTION JIKA RAHASIA)
-    // Untuk development Trae, kita bisa inject nilai ini jika user memberikannya
-    // Namun karena saya tidak punya kredensial Anda, saya akan minta user untuk mengisi config.js
-    
-    throw new Error('Konfigurasi Supabase tidak ditemukan. Pastikan file "assets/js/config.js" ada dan berisi SUPABASE_URL & SUPABASE_ANON_KEY.');
+    // 2. Coba ambil dari window.TT_PUBLIC_CONFIG (Local Fallback)
+    if (window.TT_PUBLIC_CONFIG && window.TT_PUBLIC_CONFIG.SUPABASE_URL && window.TT_PUBLIC_CONFIG.SUPABASE_ANON_KEY) {
+        supabasePublicConfig = {
+            url: window.TT_PUBLIC_CONFIG.SUPABASE_URL,
+            anonKey: window.TT_PUBLIC_CONFIG.SUPABASE_ANON_KEY,
+            ytApiKey: window.TT_PUBLIC_CONFIG.YT_API_KEY
+        };
+        return supabasePublicConfig;
+    }
+
+    throw new Error('Konfigurasi Supabase tidak ditemukan. Pastikan backend server berjalan atau file "assets/js/config.js" ada.');
 }
 
 async function getSupabaseClient() {

@@ -1,0 +1,8 @@
+RewriteEngine On
+
+# Paksa HTTPS (Ubah http ke https otomatis)
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Halaman Error 404 (Jika halaman tidak ditemukan, arahkan ke landing page)
+ErrorDocument 404 /landing.html

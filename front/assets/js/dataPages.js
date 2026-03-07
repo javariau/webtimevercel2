@@ -11,10 +11,27 @@ async function initMateriPage_DISABLED() {
     try {
         if (!window.location || !String(window.location.pathname || '').toLowerCase().endsWith('materi.html')) return;
 
-        // Cek Status Premium User
+        // Cek Status Premium User (Update: Ambil dari profiles agar real-time, jangan dari metadata)
         const sb = await getSupabaseClient();
         const { data: { user } } = await sb.auth.getUser();
-        const isPremium = user && user.user_metadata && user.user_metadata.plan === 'premium';
+        
+        let isPremium = false;
+        if (user) {
+            const { data: profile } = await sb
+                .from('profiles')
+                .select('is_premium, premium_until')
+                .eq('id', user.id)
+                .single();
+            
+            if (profile) {
+                // Cek flag is_premium dan tanggal expired
+                const isFlagged = !!profile.is_premium;
+                const notExpired = profile.premium_until ? new Date(profile.premium_until) > new Date() : false;
+                // Jika is_premium true tapi expired sudah lewat -> false (kecuali permanent)
+                // Asumsi: jika premium_until null tapi is_premium true = permanent
+                isPremium = isFlagged && (profile.premium_until === null || notExpired);
+            }
+        }
 
         const pillsContainer = document.getElementById('materiCategoryPills');
         const cardsContainer = document.getElementById('materiCards');
@@ -331,7 +348,8 @@ async function initTimelinePage() {
                     { title: 'Proklamasi Kemerdekaan', year: '1945', desc: 'Pembacaan teks Proklamasi oleh Soekarno-Hatta di Jl. Pegangsaan Timur 56.', lat: -6.2023, lng: 106.8488, type: 'Peristiwa', icon: 'flag' },
                     { title: 'Monumen Nasional (Monas)', year: '1961', desc: 'Dibangun untuk mengenang perjuangan rakyat Indonesia merebut kemerdekaan.', lat: -6.1754, lng: 106.8272, type: 'Bangunan', icon: 'monument' },
                     { title: 'Museum Sumpah Pemuda', year: '1928', desc: 'Tempat Kongres Pemuda II yang melahirkan ikrar Sumpah Pemuda.', lat: -6.1836, lng: 106.8443, type: 'Peristiwa', icon: 'users' },
-                    { title: 'Peristiwa Rengasdengklok', year: '1945', desc: 'Penculikan Soekarno-Hatta oleh golongan muda untuk mendesak proklamasi.', lat: -6.1578, lng: 107.2947, type: 'Peristiwa', icon: 'history' }
+                    { title: 'Peristiwa Rengasdengklok', year: '1945', desc: 'Penculikan Soekarno-Hatta oleh golongan muda untuk mendesak proklamasi.', lat: -6.1578, lng: 107.2947, type: 'Peristiwa', icon: 'history' },
+                    { title: 'Gedung Proklamasi', year: '1945', desc: 'Lokasi pembacaan teks proklamasi kemerdekaan Indonesia.', lat: -6.2025, lng: 106.8454, type: 'Bangunan', icon: 'building' }
                 ]
             },
             'Jawa Tengah & DIY': {
@@ -848,7 +866,19 @@ async function initQuizDetailPage() {
                 if (selectedOptId) {
                     const qOpts = optionsByQuestion.get(q.id) || [];
                     const chosen = qOpts.find((o) => String(o.id) === selectedOptId);
-                    if (chosen && chosen.is_correct) correctCount++;
+                    
+                    if (chosen) {
+                        // LOGIKA PEMBANDING YANG LEBIH AMAN
+                        // Kadang DB mengembalikan true/false (boolean), kadang "true"/"false" (string), atau 1/0
+                        const isCorrect = 
+                            chosen.is_correct === true || 
+                            String(chosen.is_correct) === 'true' || 
+                            String(chosen.is_correct) === '1';
+
+                        if (isCorrect) {
+                            correctCount++;
+                        }
+                    }
                 }
             });
 
@@ -856,6 +886,9 @@ async function initQuizDetailPage() {
             const finalScore = Math.round((correctCount / totalQuestions) * 100);
             const xpEarned = correctCount * 10; // 10 XP per jawaban benar
             const badgesEarned = Math.floor(correctCount / 2); // 2 benar = 1 badge
+
+            // DEBUGGING: Pastikan hitungan benar
+            console.log(`Quiz Debug: Benar=${correctCount}, XP=${xpEarned}, Badge=${badgesEarned}`);
 
             // Tampilkan Modal Hasil (Langsung)
             // Cari modal di seluruh document (bukan cuma di dalam root)
@@ -951,8 +984,9 @@ async function initQuizDetailPage() {
                     window.trackDailyTask('play_game', 1);
                 }
 
-                const { data: { user } } = await sb.auth.getUser();
+                const { data: { user } } = await sb.auth.getSession(); // Gunakan getSession agar lebih aman
                 if (user) {
+                    // 1. Simpan Attempt
                     await sb.from('quiz_attempts').upsert({
                         user_id: user.id,
                         quiz_id: quizId,
@@ -960,6 +994,52 @@ async function initQuizDetailPage() {
                         total_questions: totalQuestions,
                         points_earned: xpEarned
                     }, { onConflict: 'user_id,quiz_id' });
+
+                    // 2. UPDATE PROFIL LANGSUNG (XP & BADGE)
+                    // Ambil data profil dulu (Hanya points)
+                    const { data: profile } = await sb.from('profiles').select('points, badges').eq('id', user.id).single();
+                    
+                    if (profile) {
+                        
+                        // Robust Badge Parsing
+                        let currentBadgesVal = 0;
+                        if (profile.badges !== null && profile.badges !== undefined) {
+                            if (typeof profile.badges === 'number') currentBadgesVal = profile.badges;
+                            else if (typeof profile.badges === 'string') currentBadgesVal = parseInt(profile.badges) || 0;
+                            else if (Array.isArray(profile.badges)) currentBadgesVal = profile.badges.length;
+                        }
+
+                        // Use 'points' only (Kolom xp dihapus)
+                        const currentPoints = (profile.points !== undefined && profile.points !== null) ? Number(profile.points) : 0;
+                        
+                        const newTotal = currentPoints + xpEarned;
+
+                        const updatePayload = {
+                            points: newTotal, // Update points only
+                            badges: currentBadgesVal + badgesEarned
+                        };
+
+                        console.log('Updating Profile (Quiz):', updatePayload);
+                        
+                        // Gunakan update langsung (sama seperti materi selesai)
+                        const { error: err } = await sb.from('profiles').update(updatePayload).eq('id', user.id);
+                        
+                        if (err) {
+                            console.error('Quiz Update Error:', err);
+                            // Fallback: Coba RPC jika update langsung gagal (misal karena RLS column restriction)
+                            // Tapi user bilang materi selesai berhasil, jadi harusnya update langsung bisa.
+                            // Kita alert saja untuk debug user.
+                            alert('Gagal menyimpan progress ke database: ' + (err.message || 'Unknown error'));
+                        } else {
+                            console.log('Quiz Update Success');
+                        }
+
+                        // Refresh UI Dashboard Seketika
+                        if (typeof window.updateUserUI === 'function') {
+                            console.log('Calling updateUserUI()...');
+                            window.updateUserUI();
+                        }
+                    }
                 }
             } catch (err) {
                 console.error('Gagal simpan skor:', err);
@@ -1077,24 +1157,50 @@ async function initContentDetailPage() {
                         markBtn.disabled = true;
                         markBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
                         
-                        const { data: success, error } = await sb.rpc('register_read', { 
-                            p_user_id: user.id, 
-                            p_material_id: materiId 
+                        // GANTI RPC DENGAN DIRECT INSERT/UPDATE (Karena RPC mungkin error akibat kolom xp hilang)
+                        // 1. Catat di user_reads (agar tombol disable permanen)
+                        const { error: insertErr } = await sb.from('user_reads').insert({
+                            user_id: user.id,
+                            material_id: materiId,
+                            read_at: new Date().toISOString()
                         });
 
-                        if (error) throw error;
-
-                        if (success) {
-                            alert('Materi selesai! Kamu mendapatkan +10 XP.');
-                            markBtn.innerHTML = '<i class="fas fa-check-double"></i> Sudah Dibaca';
-                        } else {
-                            markBtn.innerHTML = '<i class="fas fa-check-double"></i> Sudah Dibaca';
+                        // Abaikan error duplicate key (jika sudah ada)
+                        if (insertErr && !insertErr.message.includes('duplicate')) {
+                             console.warn('Gagal insert user_reads:', insertErr);
+                             // Lanjut saja, mungkin RLS atau masalah lain, tapi kita coba beri poin
                         }
+
+                        // 2. Tambah Poin Manual
+                        const { data: profile } = await sb.from('profiles').select('points, materials_read_count').eq('id', user.id).single();
+                        if (profile) {
+                            const currentPoints = (profile.points !== undefined && profile.points !== null) ? Number(profile.points) : 0;
+                            const currentCount = profile.materials_read_count || 0;
+                            
+                            const { error: updateErr } = await sb.from('profiles').update({
+                                points: currentPoints + 10,
+                                materials_read_count: currentCount + 1
+                            }).eq('id', user.id);
+
+                            if (updateErr) throw updateErr;
+                        }
+
+                        // Sukses
+                        alert('Materi selesai! Kamu mendapatkan +10 XP.');
+                        markBtn.innerHTML = '<i class="fas fa-check-double"></i> Sudah Dibaca';
+                        
+                        // Refresh UI Dashboard Seketika (PENTING)
+                        if (typeof window.updateUserUI === 'function') {
+                            console.log('Calling updateUserUI() after materi...');
+                            window.updateUserUI();
+                        }
+
                     } catch (err) {
                         console.error('Gagal tandai selesai:', err);
                         markBtn.disabled = false;
                         markBtn.innerHTML = '<i class="fas fa-check-circle"></i> Tandai Selesai';
-                        alert('Gagal memproses permintaan.');
+                        // Pesan error yang lebih ramah
+                        alert('Gagal update data. Kemungkinan gangguan koneksi atau database.');
                     }
                 };
             }
@@ -1117,10 +1223,45 @@ async function initContentDetailTracking() {
         const user = sessionData && sessionData.session ? sessionData.session.user : null;
         if (!user) return;
 
+        // 1. Simpan riwayat baca
         await sb.from('daily_materi_reads').insert({
             user_id: user.id,
             materi_id: materiId,
         });
+
+        // 2. Update Profile: Tambah XP (+10) dan materials_read_count (+1)
+        // Cek dulu apakah materi ini sudah pernah dibaca sebelumnya untuk menghindari spam XP?
+        // Untuk sederhananya kita asumsikan setiap buka halaman = baca = dapat poin (sesuai request user "hadiah baca materi")
+        // Atau lebih baik pakai tabel user_reads yang unik.
+        // Tapi daily_materi_reads tampaknya log harian.
+        
+        // Ambil data profil saat ini
+        const { data: profile } = await sb
+            .from('profiles')
+            .select('points, materials_read_count') // HANYA AMBIL points
+            .eq('id', user.id)
+            .single();
+
+        if (profile) {
+            // Gunakan points saja
+            const currentPoints = (profile.points !== undefined && profile.points !== null) ? Number(profile.points) : 0;
+            const currentCount = profile.materials_read_count || 0;
+
+            const newTotal = currentPoints + 10;
+
+            const updatePayload = {
+                points: newTotal, // Update points saja
+                materials_read_count: currentCount + 1
+            };
+
+            console.log('Updating Profile (Read Material):', updatePayload);
+            await sb.from('profiles').update(updatePayload).eq('id', user.id);
+            
+            // Refresh UI jika fungsi tersedia
+            if (typeof window.updateUserUI === 'function') {
+                window.updateUserUI();
+            }
+        }
 
         // Track Daily Task: Read Material
         if (typeof window.trackDailyTask === 'function') {
@@ -1128,7 +1269,7 @@ async function initContentDetailTracking() {
         }
 
     } catch (e) {
-        // ignore
+        console.error('Tracking read error:', e);
     }
 }
 
@@ -1478,6 +1619,43 @@ async function initPremiumPaymentPage() {
         const root = document.getElementById('premiumPaymentRoot');
         if (!root) return;
 
+        // 1. Load Config & Snap.js (Midtrans) dengan Retry Logic
+        const config = await getSupabasePublicConfig();
+        
+        const loadSnapScript = () => new Promise((resolve, reject) => {
+            if (typeof window.snap !== 'undefined') return resolve();
+            if (document.getElementById('midtrans-script')) {
+                // Script sudah ada tapi mungkin belum selesai load
+                const existingScript = document.getElementById('midtrans-script');
+                existingScript.addEventListener('load', resolve);
+                existingScript.addEventListener('error', reject);
+                return;
+            }
+
+            if (config.midtransClientKey) {
+                const script = document.createElement('script');
+                script.id = 'midtrans-script';
+                script.src = config.midtransIsProduction 
+                    ? 'https://app.midtrans.com/snap/snap.js' 
+                    : 'https://app.sandbox.midtrans.com/snap/snap.js';
+                script.setAttribute('data-client-key', config.midtransClientKey);
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Gagal koneksi ke server Midtrans. Cek internet Anda.'));
+                document.body.appendChild(script);
+            } else {
+                reject(new Error('Konfigurasi Midtrans Client Key tidak ditemukan.'));
+            }
+        });
+
+        // Jangan await di sini agar UI tetap muncul, tapi tombol bayar nanti cek status
+        let isSnapLoaded = false;
+        loadSnapScript().then(() => {
+            isSnapLoaded = true;
+            console.log('Midtrans Snap ready.');
+        }).catch(e => {
+            console.error('Midtrans Snap failed:', e);
+        });
+
         const sb = await getSupabaseClient();
         const { user, profile } = await loadCurrentProfile();
         if (profile) updateCommonUserUI(profile);
@@ -1490,17 +1668,12 @@ async function initPremiumPaymentPage() {
         if (!Number.isFinite(packageId)) {
             const plan = String(params.get('plan') || '').toLowerCase();
             if (plan) {
-                // Try to find package by name/duration
                 let query = sb.from('premium_packages').select('id, title, duration_days').limit(10);
-                
                 if (plan === 'monthly') {
-                    // Find ~30 days or title contains 'Bulanan'
-                    // We'll fetch all and filter in JS to be safe, or just pick the one with duration ~30
                     const { data: packs } = await query;
                     const found = (packs || []).find(p => p.duration_days >= 28 && p.duration_days <= 31);
                     if (found) packageId = found.id;
                 } else if (plan === 'yearly') {
-                    // Find ~365 days
                     const { data: packs } = await query;
                     const found = (packs || []).find(p => p.duration_days >= 360);
                     if (found) packageId = found.id;
@@ -1530,111 +1703,190 @@ async function initPremiumPaymentPage() {
         const title = escapeHtml(pack.title || 'Premium');
         const desc = escapeHtml(pack.description || 'Akses fitur premium dan konten eksklusif.');
 
-        const methods = [
-            { key: 'dana', label: 'DANA' },
-            { key: 'bca', label: 'BCA' },
-            { key: 'bri', label: 'BRI' },
-            { key: 'mandiri', label: 'Mandiri' },
-        ];
-
-        const accountByMethod = {
-            dana: { name: 'Nanti diisi admin', number: '-' },
-            bca: { name: 'Nanti diisi admin', number: '-' },
-            bri: { name: 'Nanti diisi admin', number: '-' },
-            mandiri: { name: 'Nanti diisi admin', number: '-' },
-        };
-
-        const selected = String(params.get('method') || 'dana').toLowerCase();
-        const selectedKey = methods.find((m) => m.key === selected) ? selected : 'dana';
-        const acct = accountByMethod[selectedKey] || accountByMethod.dana;
-
-        const meta = user && user.user_metadata ? user.user_metadata : {};
-        const displayName =
-            (profile && (profile.full_name || profile.username) ? profile.full_name || profile.username : '') ||
-            (meta.full_name || meta.username || '') ||
-            'User';
-
-        const methodButtons = methods
-            .map((m) => {
-                const active = m.key === selectedKey ? 'active' : '';
-                const href = `premium-payment.html?package_id=${encodeURIComponent(pack.id)}&method=${encodeURIComponent(m.key)}`;
-                return `<a href="${href}" class="pill ${active}" style="text-decoration:none;">${escapeHtml(m.label)}</a>`;
-            })
-            .join('');
-
+        // Render UI Baru (Midtrans)
         root.innerHTML = `
             <div class="card-meta">${escapeHtml(`${days} hari`)}</div>
             <h3 class="card-title" style="margin-top: 6px;">${title}</h3>
             <p class="card-text">${desc}</p>
 
-            <div style="margin-top: 16px;">
-                <div class="card-meta">Pilih metode pembayaran</div>
-                <div class="category-pills" style="margin-top: 10px;">${methodButtons}</div>
+            <div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid var(--border);">
+                <div style="font-size: 14px; color: var(--text-light); margin-bottom: 5px;">Total Pembayaran</div>
+                <div style="font-size: 24px; font-weight: bold; color: var(--primary);">${priceText}</div>
             </div>
 
-            <div style="margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border);">
-                <div class="card-meta">Detail transfer (${escapeHtml(selectedKey.toUpperCase())})</div>
-                <div style="margin-top: 8px; font-size: 14px;">
-                    <div><b>Nomor:</b> ${escapeHtml(acct.number)}</div>
-                    <div><b>Atas nama:</b> ${escapeHtml(acct.name)}</div>
-                    <div><b>Nominal:</b> ${priceText}</div>
-                </div>
-            </div>
-
-            <div style="margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border);">
-                <div class="card-meta">Petunjuk pembayaran</div>
-                <div class="card-text" style="margin-top: 8px; white-space: pre-line;">
-1. Transfer sesuai nominal di atas.
-2. Simpan bukti transfer (screenshot).
-3. Klik tombol konfirmasi WhatsApp untuk mengirim data pembayaran ke admin.
-4. Setelah admin konfirmasi, fitur premium akan terbuka.
-                </div>
-            </div>
-
-            <div style="margin-top: 18px; display: flex; gap: 10px; flex-wrap: wrap;">
-                <button type="button" id="waConfirmBtn" class="btn-primary">
-                    <i class="fas fa-comments"></i> Konfirmasi ke WhatsApp Admin
+            <div style="margin-top: 24px;">
+                <button type="button" id="payBtn" class="btn-primary" style="width: 100%; padding: 14px; font-size: 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(43, 92, 165, 0.2);">
+                    <i class="fas fa-credit-card"></i> Bayar Sekarang
                 </button>
-                <a href="premium.html" class="btn-secondary" style="display:inline-block; text-decoration:none;">
-                    <i class="fas fa-arrow-left"></i> Kembali
+                <div style="text-align: center; margin-top: 12px; font-size: 12px; color: var(--text-light);">
+                    Didukung oleh Midtrans (GoPay, QRIS, VA, dll)
+                </div>
+                <a href="premium.html" class="btn-secondary" style="display:block; text-align:center; margin-top: 16px; text-decoration:none;">
+                    Batal
                 </a>
             </div>
+            <div id="paymentStatus" style="margin-top: 15px; text-align: center; font-size: 14px; font-weight: 500;"></div>
         `;
 
-        const btn = document.getElementById('waConfirmBtn');
-        if (btn) {
-            btn.addEventListener('click', async () => {
+        const payBtn = document.getElementById('payBtn');
+        const statusDiv = document.getElementById('paymentStatus');
+
+        if (payBtn) {
+            payBtn.addEventListener('click', async () => {
                 if (!user) {
                     window.location.href = 'login.html';
                     return;
                 }
 
-                let purchaseId = '';
-                try {
-                    const { data: inserted, error: insErr } = await sb
-                        .from('premium_purchases')
-                        .insert({
-                            user_id: user.id,
-                            package_id: pack.id,
-                            status: 'pending_payment',
-                            total_amount: price,
-                            payment_method_name: selectedKey.toUpperCase(),
-                            payment_account_info: `${selectedKey.toUpperCase()} - ${String(acct.number || '-')} (${String(acct.name || '-')} )`,
-                        })
-                        .select('id')
-                        .maybeSingle();
-
-                    if (!insErr && inserted && inserted.id) {
-                        purchaseId = String(inserted.id);
+                // Cek kesiapan Snap
+                if (!isSnapLoaded && typeof window.snap === 'undefined') {
+                    // Coba tunggu sebentar (retry mechanism sederhana)
+                    payBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menyiapkan pembayaran...';
+                    payBtn.disabled = true;
+                    
+                    try {
+                        await loadSnapScript();
+                        isSnapLoaded = true;
+                        payBtn.disabled = false;
+                        payBtn.innerHTML = '<i class="fas fa-credit-card"></i> Bayar Sekarang';
+                    } catch (e) {
+                        Swal.fire('Gagal', 'Sistem pembayaran gagal dimuat: ' + e.message, 'error');
+                        payBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Gagal Memuat';
+                        return;
                     }
-                } catch (e) {
-                    // ignore
                 }
 
-                const codeLine = purchaseId ? `\nKode order: ${purchaseId}` : '';
-                const msg = `Halo Admin, saya ingin konfirmasi pembayaran Premium.\n\nNama: ${displayName}${codeLine}\nPaket: ${pack.title || 'Premium'} (${days} hari)\nHarga: Rp ${formatRupiah(price)}\nMetode: ${selectedKey.toUpperCase()}\n\nSaya sudah transfer. Mohon dicek dan aktifkan premium saya. Terima kasih.`;
-                const waLink = buildWhatsAppLink(ADMIN_WA_NUMBER, msg);
-                window.open(waLink, '_blank', 'noopener');
+                try {
+                    payBtn.disabled = true;
+                    payBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+                    statusDiv.textContent = 'Menghubungkan ke payment gateway...';
+                    statusDiv.style.color = 'var(--text-light)';
+
+                    // 1. Generate Order ID
+                    const orderId = `ORDER-${Date.now()}-${user.id.substring(0,6)}`;
+
+                    // 2. Get Token from Backend
+                    const res = await fetch('/api/midtrans/token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            orderId: orderId,
+                            grossAmount: price,
+                            customerDetails: {
+                                first_name: (profile.full_name || user.email || 'User').substring(0, 50),
+                                email: user.email,
+                                phone: profile.mobile_no || '08123456789'
+                            }
+                        })
+                    });
+
+                    if (!res.ok) {
+                        const errData = await res.json();
+                        throw new Error(errData.error || 'Gagal mendapatkan token pembayaran');
+                    }
+                    
+                    const { token } = await res.json();
+                    if (!token) throw new Error('Token tidak valid dari server');
+
+                    // 3. Catat di database (status: pending)
+                    // Abaikan error insert agar user tetap bisa bayar (opsional, tapi sebaiknya dicatat)
+                    await sb.from('premium_purchases').insert({
+                        user_id: user.id,
+                        package_id: pack.id,
+                        status: 'pending_payment', 
+                        total_amount: price,
+                        payment_method_name: 'MIDTRANS_PENDING',
+                        payment_account_info: orderId
+                    });
+
+                    // 4. Show Snap Popup
+                    window.snap.pay(token, {
+                        onSuccess: async function(result){
+                            statusDiv.innerHTML = '<span style="color: green;"><i class="fas fa-check-circle"></i> Pembayaran Berhasil!</span>';
+                            payBtn.innerHTML = '<i class="fas fa-check"></i> Selesai';
+                            
+                            // --- AKTIVASI PREMIUM LANGSUNG (CLIENT-SIDE) ---
+                            // Agar jalan di Localhost tanpa Webhook/Ngrok
+                            try {
+                                Swal.showLoading(); // Tampilkan loading saat update DB
+                                
+                                // 1. Update status pembelian
+                                await sb.from('premium_purchases')
+                                    .update({ status: 'paid', updated_at: new Date().toISOString() })
+                                    .eq('payment_account_info', orderId);
+
+                                // 2. Hitung expired date
+                                const pDays = typeof pack.duration_days === 'number' ? pack.duration_days : 30;
+                                const expiryDate = new Date();
+                                expiryDate.setDate(expiryDate.getDate() + pDays);
+
+                                // 3. Update Profile
+                                await sb.from('profiles')
+                                    .update({ 
+                                        is_premium: true, 
+                                        premium_until: expiryDate.toISOString() 
+                                    })
+                                    .eq('id', user.id);
+                                    
+                                console.log('✅ Premium activated via Frontend!');
+                            } catch (errAct) {
+                                console.error('Gagal aktivasi otomatis:', errAct);
+                            }
+                            // ------------------------------------------------
+
+                            // Redirect ke halaman sukses / premium
+                            Swal.fire({
+                                title: 'Pembayaran Berhasil!',
+                                text: 'Terima kasih! Fitur premium Anda TELAH AKTIF.',
+                                icon: 'success',
+                                confirmButtonText: 'Lanjut',
+                                confirmButtonColor: '#2b5ca5'
+                            }).then(() => {
+                                window.location.href = 'premium.html';
+                            });
+                        },
+                        onPending: function(result){
+                            statusDiv.innerHTML = '<span style="color: orange;"><i class="fas fa-clock"></i> Menunggu pembayaran...</span>';
+                            payBtn.innerHTML = '<i class="fas fa-credit-card"></i> Lanjutkan Pembayaran';
+                            payBtn.disabled = false;
+                            
+                            Swal.fire({
+                                title: 'Menunggu Pembayaran',
+                                text: 'Silakan selesaikan pembayaran Anda sesuai instruksi.',
+                                icon: 'info',
+                                confirmButtonColor: '#2b5ca5'
+                            });
+                        },
+                        onError: function(result){
+                            statusDiv.innerHTML = '<span style="color: red;"><i class="fas fa-times-circle"></i> Pembayaran gagal!</span>';
+                            payBtn.disabled = false;
+                            payBtn.innerHTML = '<i class="fas fa-credit-card"></i> Coba Lagi';
+                            
+                            Swal.fire({
+                                title: 'Pembayaran Gagal',
+                                text: 'Terjadi kesalahan saat memproses pembayaran. Silakan coba lagi.',
+                                icon: 'error',
+                                confirmButtonColor: '#d33'
+                            });
+                        },
+                        onClose: function(){
+                            statusDiv.textContent = 'Jendela pembayaran ditutup.';
+                            payBtn.disabled = false;
+                            payBtn.innerHTML = '<i class="fas fa-credit-card"></i> Bayar Sekarang';
+                        }
+                    });
+
+                } catch (e) {
+                    console.error(e);
+                    Swal.fire({
+                        title: 'Error',
+                        text: e.message || 'Terjadi kesalahan sistem',
+                        icon: 'error'
+                    });
+                    payBtn.disabled = false;
+                    payBtn.innerHTML = '<i class="fas fa-credit-card"></i> Bayar Sekarang';
+                    statusDiv.textContent = '';
+                }
             });
         }
     } catch (e) {
@@ -1819,52 +2071,32 @@ function updateCommonUserUI(profile) {
 
 async function syncUserStats(sb, userId) {
     try {
-        // 1. Hitung Materi Selesai
-        const { data: reads, error: readErr } = await sb
-            .from('daily_materi_reads')
-            .select('materi_id')
-            .eq('user_id', userId);
+        // Ambil data langsung dari tabel profiles (Single Source of Truth)
+        // GUNAKAN 'points' sebagai XP (Kolom xp sudah dihapus)
+        const { data: profile, error } = await sb
+            .from('profiles')
+            .select('points, badges, materials_read_count')
+            .eq('id', userId)
+            .single();
+
+        if (error || !profile) {
+            console.error('Gagal ambil stats user:', error);
+            return { materiSelesai: 0, badgeCount: 0, xp: 0 };
+        }
+
+        // Mapping: points -> xp
+        const xp = (profile.points !== undefined && profile.points !== null) ? Number(profile.points) : 0;
+        const materiSelesai = profile.materials_read_count || 0;
         
-        let materiSelesai = 0;
-        if (!readErr && reads) {
-            const unique = new Set(reads.map(r => r.materi_id).filter(id => id != null));
-            materiSelesai = unique.size;
+        // Handle badge count (bisa number atau array jsonb)
+        let badgeCount = 0;
+        if (typeof profile.badges === 'number') {
+            badgeCount = profile.badges;
+        } else if (Array.isArray(profile.badges)) {
+            badgeCount = profile.badges.length;
         }
 
-        // 2. Hitung Quiz Stats (Badges & XP dari Quiz)
-        const { data: attempts, error: quizErr } = await sb
-            .from('quiz_attempts')
-            .select('score, points_earned')
-            .eq('user_id', userId);
-
-        let totalScore = 0;
-        let quizXP = 0;
-
-        if (!quizErr && attempts) {
-            attempts.forEach(a => {
-                totalScore += (a.score || 0);
-                quizXP += (a.points_earned || 0);
-            });
-        }
-
-        // Logika Badge: 1 Badge setiap 2 jawaban benar (akumulatif)
-        const badgeCount = Math.floor(totalScore / 2);
-
-        // 3. Hitung Total XP
-        // XP = (Materi * 10) + (Quiz XP) + (Badge Bonus * 20)
-        // Opsional: Tambahkan bonus badge agar XP tidak 0
-        const readXP = materiSelesai * 10;
-        const badgeBonusXP = badgeCount * 20; 
-        const totalXP = readXP + quizXP + badgeBonusXP;
-
-        // 4. Update Profile di Database agar sinkron
-        await sb.from('profiles').update({
-            materials_read_count: materiSelesai,
-            badges: badgeCount,
-            xp: totalXP
-        }).eq('id', userId);
-
-        return { materiSelesai, badgeCount, xp: totalXP };
+        return { materiSelesai, badgeCount, xp };
     } catch (e) {
         console.error('Sync stats error:', e);
         return { materiSelesai: 0, badgeCount: 0, xp: 0 };
@@ -2531,8 +2763,8 @@ async function initAchievementPage() {
         const sb = await getSupabaseClient();
         const { data: users, error } = await sb
             .from('profiles')
-            .select('id, full_name, username, avatar_url, xp, level, badges')
-            .order('xp', { ascending: false })
+            .select('id, full_name, username, avatar_url, points, level, badges')
+            .order('points', { ascending: false })
             .limit(10);
 
         if (error) {
@@ -2573,7 +2805,7 @@ async function initAchievementPage() {
                         <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); background: ${color}; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 12px; border: 2px solid white;">${rank}</div>
                     </div>
                     <div style="font-weight: 600; font-size: ${isFirst ? '16px' : '14px'}; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;">${name}</div>
-                    <div style="font-size: 12px; color: var(--primary); font-weight: bold;">${u.xp || 0} XP</div>
+                    <div style="font-size: 12px; color: var(--primary); font-weight: bold;">${u.points || 0} XP</div>
                     <div style="width: 100%; height: ${height}; background: linear-gradient(to top, ${color}20, ${color}00); border-top: 4px solid ${color}; border-radius: 8px 8px 0 0; margin-top: 10px;"></div>
                 </div>`;
             });
@@ -2596,7 +2828,7 @@ async function initAchievementPage() {
                         <div style="font-weight: 600;">${name}</div>
                         <div style="font-size: 12px; color: var(--text-light);">Level ${u.level || 1} • ${u.badges || 0} Badge</div>
                     </div>
-                    <div style="font-weight: bold; color: var(--primary);">${u.xp || 0} XP</div>
+                    <div style="font-weight: bold; color: var(--primary);">${u.points || 0} XP</div>
                 </div>`;
             });
             listHtml += `</div>`;

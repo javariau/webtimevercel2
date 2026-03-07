@@ -25,10 +25,44 @@ body {
     line-height: 1.6;
 }
 
-/* Desktop Layout */
-.app-container {
-    display: flex;
-    min-height: 100vh;
+/* Mobile & Responsive */
+@media (max-width: 768px) {
+    .app-container {
+        display: block; /* Remove flex on mobile to prevent squishing */
+        height: auto;
+    }
+
+    .sidebar {
+        transform: translateX(-100%);
+        width: 80%;
+        max-width: 300px;
+        position: fixed;
+        z-index: 1000;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-left: 0 !important; /* Reset margin on mobile */
+        width: 100% !important;
+        padding: 15px;
+        padding-bottom: 80px; /* Space for bottom nav */
+    }
+
+    /* Fix Zoom Issue: Ensure containers don't overflow */
+    body, html {
+        overflow-x: hidden;
+        width: 100%;
+        -webkit-text-size-adjust: 100%; /* Prevent auto-zoom on orientation change */
+    }
+    
+    img {
+        max-width: 100%;
+        height: auto;
+    }
 }
 
 /* Sidebar Navigation - Desktop */
@@ -512,7 +546,6 @@ body {
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     height: 2.8em; /* 1.4 line-height * 2 lines */
@@ -524,7 +557,6 @@ body {
     line-height: 1.6;
     display: -webkit-box;
     -webkit-line-clamp: 2;
-    line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
     height: 3.2em; /* 1.6 line-height * 2 lines */
@@ -1793,10 +1825,9 @@ body {
         font-size: 13px;
         line-height: 1.5;
         display: -webkit-box;
-        -webkit-line-clamp: 2; /* Batasi hanya 2 baris */
-        line-clamp: 2; /* Standard property for compatibility */
-        -webkit-box-orient: vertical;
-        overflow: hidden;
+    -webkit-line-clamp: 2; /* Batasi hanya 2 baris */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
         margin-bottom: 8px;
         height: 3em; /* Fallback height for non-webkit browsers (1.5 line-height * 2 lines) */
     }

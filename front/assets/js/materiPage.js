@@ -1,4 +1,5 @@
-async function initMateriPage() {
+async function initMateriPageV2() {
+    console.log('initMateriPageV2 STARTED'); // Debug log
     const pillsContainer = document.getElementById('materiCategoryPills');
     const cardsContainer = document.getElementById('materiCards');
     if (!pillsContainer || !cardsContainer) return;
@@ -65,19 +66,54 @@ async function initMateriPage() {
             setCardsMessage('Memuat materi...');
             const sb = await getSupabaseClient();
 
-            let premiumOk = false;
+            let isPremium = false;
             try {
                 const { data: sessionData } = await sb.auth.getSession();
                 const user = sessionData && sessionData.session ? sessionData.session.user : null;
-                premiumOk = user && typeof window.isPremiumActive === 'function' ? await window.isPremiumActive(sb, user.id) : false;
+                
+                if (user) {
+                    // DEBUG: Ambil semua kolom dulu agar tidak error jika kolom spesifik hilang
+                    const { data: profile, error: profErr } = await sb
+                        .from('profiles')
+                        .select('*')
+                        .eq('id', user.id)
+                        .single();
+                    
+                    console.log('--- DEBUG PREMIUM CHECK ---');
+                    console.log('User ID:', user.id);
+                    console.log('Profile Data:', profile);
+                    console.log('Profile Error:', profErr);
+
+                    if (profile) {
+                        // Cek berbagai kemungkinan nama kolom
+                        const isPremiumBool = !!profile.is_premium;
+                        const planPremium = (profile.plan === 'premium');
+                        
+                        // Cek tanggal expired (support nama kolom berbeda)
+                        const expiryStr = profile.premium_until || profile.premium_expires_at || profile.expires_at;
+                        const notExpired = expiryStr ? new Date(expiryStr) > new Date() : false;
+                        
+                        // Logika Gabungan:
+                        // Premium jika: (is_premium TRUE ATAU plan='premium') DAN (tidak expired atau permanent)
+                        const statusActive = isPremiumBool || planPremium;
+                        isPremium = statusActive && (expiryStr === null || expiryStr === undefined || notExpired);
+                        
+                        console.log('isPremiumBool:', isPremiumBool);
+                        console.log('planPremium:', planPremium);
+                        console.log('expiryStr:', expiryStr);
+                        console.log('notExpired:', notExpired);
+                        console.log('FINAL isPremium:', isPremium);
+                    }
+                }
             } catch (e) {
-                premiumOk = false;
+                console.error('Premium Check Error:', e);
+                isPremium = false;
             }
 
             let q = sb
                 .from('materi')
                 .select('id, category_id, title, subtitle, image_url, summary, created_at')
-                .order('created_at', { ascending: false }); // Tampilkan semua tanpa limit ketat
+                .order('created_at', { ascending: false });
 
             if (categoryId) q = q.eq('category_id', categoryId);
 
@@ -92,21 +128,33 @@ async function initMateriPage() {
                 });
             }
 
-            // Override: Tampilkan semua materi (Premium diabaikan)
-            renderMateriCards(rows);
-            
-            /* Logic Premium Sebelumnya (Dinonaktifkan)
-            if (!premiumOk) {
+            // Logic Premium vs Free
+            if (isPremium) {
+                renderMateriCards(rows);
+            } else {
                 const freeCount = 6;
                 const visible = rows.slice(0, freeCount);
                 renderMateriCards(visible);
+                
                 if (rows.length > freeCount) {
-                     // ... card premium ...
+                    const lockCard = document.createElement('div');
+                    lockCard.className = 'card';
+                    lockCard.style.cssText = 'background: #f8f9fa; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; border: 2px dashed #ccc; cursor: pointer; min-height: 380px;';
+                    lockCard.onclick = () => window.location.href = 'premium.html';
+                    lockCard.innerHTML = `
+                        <div style="font-size: 48px; margin-bottom: 15px; color: var(--text-light);">🔒</div>
+                        <h3 style="font-size: 18px; margin-bottom: 8px;">Konten Premium</h3>
+                        <p style="font-size: 14px; color: var(--text-light); margin-bottom: 20px; line-height: 1.5;">
+                            Terdapat <b>${rows.length - freeCount}</b> materi tambahan yang terkunci.<br>
+                            Upgrade akun Anda untuk membuka semua akses.
+                        </p>
+                        <button class="btn-primary" style="padding: 10px 20px; font-size: 14px; border-radius: 50px;">
+                            <i class="fas fa-crown"></i> Buka Akses Premium
+                        </button>
+                    `;
+                    cardsContainer.appendChild(lockCard);
                 }
-                return;
             }
-            renderMateriCards(rows);
-            */
         } catch (e) {
             console.error('Materi load error:', e);
             setCardsMessage('Gagal memuat materi.');
@@ -300,10 +348,23 @@ function initMusicPlayer() {
 
     if (!container || !controls || !toggleBtn || !prevBtn || !nextBtn || !trackNameEl || !statusEl || !icon) return;
 
-    const searchEnabled = !!(window.TT_PUBLIC_CONFIG && window.TT_PUBLIC_CONFIG.YT_API_KEY);
-    if (!searchEnabled) {
-        if (searchBtn) searchBtn.style.display = 'none';
-        if (searchPanel) searchPanel.style.display = 'none';
+    // --- SEARCH LOGIC (FALLBACK) ---
+    // If API Key is missing, use search link instead of embedded search
+    const searchEnabled = false; // Fix ReferenceError
+    if (searchBtn) {
+        if (!searchEnabled) {
+            searchBtn.style.display = 'inline-block'; // Show anyway
+            searchBtn.onclick = () => {
+                window.open('https://www.youtube.com/results?search_query=lofi+study+music', '_blank');
+            };
+        } else {
+            // Normal Search Logic
+            searchBtn.onclick = () => {
+                const isHidden = searchPanel.style.display === 'none';
+                searchPanel.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) searchInput.focus();
+            };
+        }
     }
 
     let ytPlayerDiv = document.getElementById('ytPlayerHidden');
@@ -488,11 +549,27 @@ function initMusicPlayer() {
 
     const performSearch = async (q) => {
         if (!q || !searchResults) return;
-        if (!window.TT_PUBLIC_CONFIG || !window.TT_PUBLIC_CONFIG.YT_API_KEY) {
-            searchResults.innerHTML = '<div style="padding:8px 10px;color:#666;font-size:13px;">Aktifkan pencarian: isi YT_API_KEY di assets/js/config.example.js → salin jadi assets/js/config.js</div>';
+
+        let key = null;
+        try {
+            const config = await getSupabasePublicConfig();
+            key = config.ytApiKey;
+        } catch (e) {
+            console.warn('Config load failed:', e);
+        }
+
+        if (!key) {
+            // Fallback: Cek global config lama
+            if (window.TT_PUBLIC_CONFIG && window.TT_PUBLIC_CONFIG.YT_API_KEY) {
+                key = window.TT_PUBLIC_CONFIG.YT_API_KEY;
+            }
+        }
+
+        if (!key) {
+            searchResults.innerHTML = '<div style="padding:8px 10px;color:#666;font-size:13px;">Gagal memuat YT_API_KEY dari server. Cek koneksi backend.</div>';
             return;
         }
-        const key = window.TT_PUBLIC_CONFIG.YT_API_KEY;
+
         const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=8&videoEmbeddable=true&safeSearch=none&q=${encodeURIComponent(q)}&key=${encodeURIComponent(key)}`;
         try {
             searchResults.innerHTML = '<div style="padding:8px 10px;color:#666;font-size:13px;">Mencari...</div>';

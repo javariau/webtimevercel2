@@ -244,27 +244,17 @@ window.claimTaskReward = async function(taskId) {
         const oldModal = document.getElementById('claimSuccessModal');
         if (oldModal) oldModal.remove();
 
-        // Buat Modal
-        let modal = document.createElement('div');
-        modal.id = 'claimSuccessModal';
-        modal.className = 'modal-overlay';
-        // Z-Index Max Int untuk memastikan selalu di paling atas
-        modal.style.cssText = 'position:fixed !important; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5) !important; z-index:2147483647 !important; display:flex !important; align-items:center !important; justify-content:center !important; opacity:0; transition:opacity 0.3s;';
-        
-        // Isi modal sementara (loading)
-        modal.innerHTML = `
-            <div class="modal-content" style="background:white; padding:30px; border-radius:20px; text-align:center; max-width:300px; transform:scale(0.8); transition:transform 0.3s; box-shadow:0 10px 30px rgba(0,0,0,0.3);">
-                <div style="font-size:40px; margin-bottom:15px;"><i class="fas fa-spinner fa-spin" style="color:#4caf50;"></i></div>
-                <h3 style="margin:0; color:#333;">Memproses...</h3>
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        // Tampilkan
-        setTimeout(() => {
-            modal.style.opacity = '1';
-            modal.querySelector('.modal-content').style.transform = 'scale(1)';
-        }, 50);
+        // Gunakan SweetAlert2 jika tersedia (Lebih cantik & konsisten)
+        if (window.Swal) {
+            Swal.fire({
+                title: 'Memproses...',
+                text: 'Sedang mengklaim hadiah...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        }
 
         // 2. Proses Database
         const sb = await getSupabaseClient();
@@ -276,54 +266,70 @@ window.claimTaskReward = async function(taskId) {
         if (!task) throw new Error('Task not found');
 
         // Update User Task jadi Completed
-        const { error } = await sb.from('user_tasks').update({
-            is_completed: true,
-            last_updated_at: new Date().toISOString()
-        }).eq('user_id', user.id).eq('task_id', taskId);
+        try {
+            const { error } = await sb.from('user_tasks').update({
+                is_completed: true,
+                last_updated_at: new Date().toISOString()
+            }).eq('user_id', user.id).eq('task_id', taskId);
+            
+            if (error) console.warn('Gagal update status task:', error);
+        } catch (updateErr) {
+             console.warn('Gagal update status task:', updateErr);
+        }
 
-        if (error) throw error;
-
-        // Tambah XP User
+        // Tambah XP User (Direct Update ke kolom 'points')
         let finalXp = 0;
-        const { data: profile } = await sb.from('profiles').select('xp').eq('id', user.id).single();
-        if (profile) {
-            const newXp = (profile.xp || 0) + task.points_reward;
-            finalXp = newXp;
-            await sb.from('profiles').update({ xp: newXp }).eq('id', user.id);
-            if (window.updateUserUI) window.updateUserUI();
+        let successXp = false;
+        
+        // Coba: Direct Update (Get -> Set) ke kolom points
+        try {
+            const { data: profile } = await sb.from('profiles').select('points').eq('id', user.id).single();
+            if (profile) {
+                const currentPoints = profile.points || 0;
+                const newPoints = currentPoints + task.points_reward;
+                
+                const { error: directErr } = await sb
+                    .from('profiles')
+                    .update({ points: newPoints })
+                    .eq('id', user.id);
+                
+                if (!directErr) {
+                    finalXp = newPoints;
+                    successXp = true;
+                    console.log('Sukses update Points (XP) via Direct Update:', finalXp);
+                } else {
+                    console.error('Direct update failed:', directErr);
+                    throw directErr;
+                }
+            }
+        } catch (directErr) {
+            console.error('Gagal update points:', directErr);
         }
 
-        // 3. Update Modal jadi SUKSES
-        const content = modal.querySelector('.modal-content');
-        content.innerHTML = `
-            <div style="font-size:50px; margin-bottom:15px; animation: bounce 1s infinite;">🎉</div>
-            <h3 style="margin:0; color:#333;">Selamat!</h3>
-            <p style="color:#666; margin:10px 0 5px;">Kamu mendapatkan <b style="color:#4caf50;">+${task.points_reward} XP</b></p>
-            <p style="color:#888; font-size:12px; margin-bottom:20px;">Total XP: <b>${finalXp}</b></p>
-            <button class="close-modal-btn" style="background:#4caf50; color:white; border:none; padding:10px 25px; border-radius:50px; cursor:pointer; font-weight:bold;">
-                Mantap!
-            </button>
-        `;
-
-        // Update tombol di kartu jadi "Selesai" (Permanen)
-        if (clickedBtn) {
-            clickedBtn.innerHTML = '<i class="fas fa-check-double"></i> Selesai';
-            clickedBtn.style.background = '#e0e0e0';
-            clickedBtn.style.color = '#666';
-            clickedBtn.style.cursor = 'default';
+        // Refresh UI XP
+        if (successXp && window.updateUserUI) {
+            // Force update UI element manually first for instant feedback
+            const headerXp = document.getElementById('headerUserXp');
+            if (headerXp) headerXp.textContent = `${finalXp} XP`;
+            
+            // Also call global updater
+            window.updateUserUI();
         }
 
-        // Pasang event listener tutup (Gunakan querySelector pada modal untuk lebih aman)
-        const closeBtn = modal.querySelector('.close-modal-btn');
-        if (closeBtn) {
-            closeBtn.onclick = function() {
-                modal.style.opacity = '0';
-                setTimeout(() => {
-                    if (modal.parentNode) modal.parentNode.removeChild(modal);
-                    // Refresh UI setelah tutup modal
-                    if (window.renderDailyTasks) window.renderDailyTasks();
-                }, 300);
-            };
+        // Tampilkan Sukses
+        if (window.Swal) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Selamat!',
+                html: `Kamu mendapatkan <b style="color:#4caf50;">+${task.points_reward} XP</b><br>Total XP: <b>${finalXp}</b>`,
+                confirmButtonText: 'Mantap!',
+                confirmButtonColor: '#4caf50'
+            }).then(() => {
+                if (window.renderDailyTasks) window.renderDailyTasks();
+            });
+        } else {
+            alert(`Selamat! Kamu mendapatkan +${task.points_reward} XP. Total XP: ${finalXp}`);
+            if (window.renderDailyTasks) window.renderDailyTasks();
         }
 
     } catch (e) {
@@ -337,8 +343,15 @@ window.claimTaskReward = async function(taskId) {
             clickedBtn.style.cursor = 'pointer';
         }
 
-        // Fallback Alert jika modal gagal
-        alert('Gagal klaim hadiah. Cek koneksi internet.');
+        if (window.Swal) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: 'Gagal klaim hadiah. Cek koneksi internet.'
+            });
+        } else {
+            alert('Gagal klaim hadiah. Cek koneksi internet.');
+        }
     }
 };
 

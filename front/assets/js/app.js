@@ -1,13 +1,16 @@
 async function loadScript(src) {
     return new Promise((resolve, reject) => {
+        // Cek jika script sudah ada (tapi kali ini kita paksa reload jika perlu untuk development)
         const existing = document.querySelector(`script[data-src="${src}"]`);
         if (existing) {
+            // Opsional: Remove and reload? Untuk sekarang kita assume kalau ada berarti ok.
             resolve();
             return;
         }
 
         const s = document.createElement('script');
-        s.src = src;
+        // Tambahkan timestamp agar tidak dicache browser saat development
+        s.src = `${src}?v=${new Date().getTime()}`; 
         s.async = false;
         s.dataset.src = src;
         s.onload = () => resolve();
@@ -52,7 +55,7 @@ async function boot() {
         await loadScript('assets/js/auth.js');
         await loadScript('assets/js/materiPage.js');
         await loadScript('assets/js/dataPages.js');
-        await loadScript('assets/js/dailyTasks.js'); // Load Daily Tasks System
+        await loadScript('assets/js/dailyTasks.js'); // Restore Daily Tasks
         await loadScript('assets/js/bootstrap.js');
 
         // Pastikan initApp ada sebelum dijalankan

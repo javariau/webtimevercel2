@@ -723,15 +723,33 @@ async function saveScore(finalScore) {
             const { data: { user } } = await sb.auth.getUser();
             
             if (user) {
-                // Update profile XP
+                // Update profile XP (Points) & Badges
                 // Ideally this should be an RPC or checked against daily limits
-                const { data: profile } = await sb.from('profiles').select('xp').eq('id', user.id).single();
+                const { data: profile } = await sb.from('profiles').select('points, badges').eq('id', user.id).single();
                 if (profile) {
-                    const newXp = (profile.xp || 0) + finalScore;
-                    const { error } = await sb.from('profiles').update({ xp: newXp }).eq('id', user.id);
+                    const newPoints = (profile.points || 0) + finalScore;
+                    
+                    // Logika Badge Game: Setiap menang/selesai dapat 1 Badge tambahan (jika skor > 0)
+                    let currentBadges = 0;
+                    if (typeof profile.badges === 'number') currentBadges = profile.badges;
+                    else if (Array.isArray(profile.badges)) currentBadges = profile.badges.length;
+                    
+                    const badgesEarned = finalScore > 0 ? 1 : 0;
+                    const newBadges = currentBadges + badgesEarned;
+
+                    const { error } = await sb.from('profiles').update({ 
+                        points: newPoints,
+                        badges: newBadges
+                    }).eq('id', user.id);
                     
                     if (!error) {
-                        console.log('XP Updated:', newXp);
+                        console.log('XP (Points) Updated:', newPoints, 'Badges:', newBadges);
+                        
+                        // Show visual feedback for badge
+                        if (badgesEarned > 0) {
+                            // Coba tampilkan notifikasi badge jika memungkinkan
+                            // alert('Kamu dapat 1 Badge!'); // Terlalu mengganggu, skip saja
+                        }
                         
                         // Track Daily Task: Play Game
                         if (typeof window.trackDailyTask === 'function') {
