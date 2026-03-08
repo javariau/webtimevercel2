@@ -21,6 +21,14 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 9090;
+
+// Update CORS untuk mengizinkan Vercel dan Domain Anda
+app.use(cors({
+    origin: '*', // Izinkan semua origin untuk sementara (debug)
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = String(process.env.SUPABASE_ANON_KEY || '').trim();
 const SUPABASE_SERVICE_ROLE_KEY = String(process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
