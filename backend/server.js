@@ -28,6 +28,7 @@ app.use(cors({
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+app.options('*', cors()); // Enable Pre-Flight
 
 const SUPABASE_URL = String(process.env.SUPABASE_URL || '').trim();
 const SUPABASE_ANON_KEY = String(process.env.SUPABASE_ANON_KEY || '').trim();
@@ -54,7 +55,7 @@ const frontDir = path.resolve(__dirname, '..', 'front');
 const rootDir = path.resolve(__dirname, '..');
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors());
+// app.use(cors()); // Hapus baris ini karena sudah di-set di atas
 app.use(express.json({ limit: '10kb' }));
 
 const limiter = rateLimit({
